@@ -3,411 +3,416 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cyber Bibou Evolution</title>
+    <title>Bibou Adventure</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; }
-        canvas { display: block; width: 100%; height: 100%; }
-        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 20px; box-sizing: border-box; }
-        .hud { color: #fff; font-size: 18px; text-shadow: 0 0 10px #0ff; display: flex; justify-content: space-between; }
-        .vies { color: #ff4757; font-size: 24px; }
-        #msg-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); border: 2px solid #0ff; padding: 30px; text-align: center; color: #fff; display: none; z-index: 100; min-width: 280px; border-radius: 10px; }
-        button { background: #0ff; border: none; padding: 12px 25px; font-family: 'Orbitron'; font-weight: bold; cursor: pointer; margin-top: 15px; border-radius: 5px; }
-        #powerup-ui { position: absolute; top: 60px; left: 20px; display: flex; gap: 10px; }
-        .badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; display: none; text-transform: uppercase; }
-        #rotate { display: none; position: fixed; inset: 0; background: #000; color: #0ff; z-index: 999; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        @media (orientation: portrait) { #rotate { display: flex; } }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: #000; touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas { display: block; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+        .hud {
+            display: flex; justify-content: space-between; padding: 15px;
+            color: white; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 18px;
+        }
+        #menu {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20; color: white; text-align: center; pointer-events: auto;
+        }
+        button {
+            padding: 15px 40px; font-size: 20px; cursor: pointer;
+            background: #ff4757; color: white; border: none; border-radius: 50px;
+            margin-top: 20px; font-weight: bold; box-shadow: 0 4px 15px rgba(255,71,87,0.4);
+        }
+        .vies { color: #ff4757; font-size: 24px; letter-spacing: 5px; }
     </style>
 </head>
 <body>
-    <div id="rotate"><h2>🔄 TOURNER L'ÉCRAN</h2><p>Le hockey du futur se joue en paysage !</p></div>
-    <div id="ui">
+
+    <div id="overlay">
         <div class="hud">
-            <div>CREDITS: <span id="coins">0</span></div>
-            <div id="lvl-name">LVL 1: BANLIEUE BLEUE</div>
-            <div class="vies" id="vies">♥♥♥</div>
-        </div>
-        <div id="powerup-ui">
-            <div id="badge-shield" class="badge" style="background: #1e90ff; border: 1px solid #fff;">BOUCLIER</div>
-            <div id="badge-jump" class="badge" style="background: #2ed573; border: 1px solid #fff;">SUPER SAUT</div>
+            <div id="vies-ui" class="vies">♥♥♥</div>
+            <div id="lvl-ui">NIVEAU 1</div>
+            <div>SCORE: <span id="score-ui">0</span></div>
         </div>
     </div>
-    <div id="msg-box">
-        <h2 id="msg-title">CYBER BIBOU</h2>
-        <p id="msg-text">Prêt pour le match ?</p>
-        <button onclick="handleBtn()">START</button>
+
+    <div id="menu">
+        <h1 id="menu-title">BIBOU ADVENTURE</h1>
+        <p id="menu-text">Tintin & Mélanie dans le futur !</p>
+        <button onclick="startGame()">JOUER</button>
     </div>
-    <canvas id="game"></canvas>
+
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById('game');
+/**
+ * BIBOU ADVENTURE - Engine v4
+ * Fixed Fullscreen & Mobile Optimization
+ */
+
+const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let w, h;
 
-// Paramètres de jeu
-let gameState = 'START';
-let currentLevel = 1;
-let score = 0;
-let lives = 3;
-let cameraX = 0;
-let invincibility = 0;
-
-// Power-ups
-let hasShield = false;
-let jumpBoost = 0;
-
-const player = {
-    x: 100, y: 0, w: 45, h: 75, vx: 0, vy: 0,
-    grounded: false, dir: 1, anim: 0
+// Game State
+let state = {
+    playing: false,
+    level: 1,
+    score: 0,
+    lives: 3,
+    invincible: 0,
+    camX: 0,
+    width: 0,
+    height: 0
 };
 
-let platforms = [], spikes = [], coins = [], powerups = [], particles = [], deco = [];
-
-const LVL_THEMES = {
-    1: { name: "BANLIEUE BLEUE", color: "#00d2ff", bg: "#000510", decoType: "tours" },
-    2: { name: "DESERT CYBER", color: "#ff9f43", bg: "#1a0a00", decoType: "montagnes" },
-    3: { name: "STATION LHC", color: "#ff4757", bg: "#0d0210", decoType: "espace" }
+// Player
+const bibou = {
+    x: 100, y: 0, w: 40, h: 60, vx: 0, vy: 0,
+    grounded: false, dir: 1, jumpCount: 0,
+    shield: false, superJump: 0
 };
 
-function init() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-    if(gameState === 'PLAYING') generateLevel();
+// Map Data
+let platforms = [], coins = [], spikes = [], powerups = [], bgItems = [], goal = {x:0, y:0};
+
+const THEMES = {
+    1: { name: "FORÊT NÉON", bg: "#0a1f0a", primary: "#2ecc71", secondary: "#27ae60" },
+    2: { name: "CITÉ BIBOU", bg: "#1a0a1f", primary: "#9b59b6", secondary: "#8e44ad" },
+    3: { name: "STATION SPATIALE", bg: "#050505", primary: "#f1c40f", secondary: "#f39c12" }
+};
+
+function resize() {
+    state.width = canvas.width = window.innerWidth;
+    state.height = canvas.height = window.innerHeight;
+    if (state.playing) initLevel(); 
 }
-window.onresize = init;
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 300));
 
-function generateLevel() {
-    platforms = []; spikes = []; coins = []; powerups = []; deco = [];
-    const theme = LVL_THEMES[currentLevel];
-    document.getElementById('lvl-name').innerText = `LVL ${currentLevel}: ${theme.name}`;
-    document.getElementById('lvl-name').style.color = theme.color;
+function initLevel() {
+    platforms = []; coins = []; spikes = []; powerups = []; bgItems = [];
+    state.camX = 0;
+    bibou.x = 100; bibou.y = 100; bibou.vx = 0; bibou.vy = 0;
+    bibou.shield = false; bibou.superJump = 0;
 
-    let cx = 0;
-    let cy = h - 100;
+    const theme = THEMES[state.level];
+    document.getElementById('lvl-ui').innerText = theme.name;
+    document.getElementById('lvl-ui').style.color = theme.primary;
 
-    // Décor de fond
-    for(let i=0; i<15; i++) {
-        deco.push({
-            x: Math.random() * 5000,
-            y: theme.decoType === 'tours' ? h : Math.random() * h/2,
-            w: 50 + Math.random() * 100,
-            h: 100 + Math.random() * 300,
-            speed: 0.1 + Math.random() * 0.2
+    // Décor aléatoire
+    for(let i=0; i<20; i++) {
+        bgItems.push({
+            x: Math.random() * 6000,
+            y: Math.random() * state.height,
+            size: 20 + Math.random() * 100,
+            speed: 0.1 + Math.random() * 0.3
         });
     }
 
-    // Sol de départ
-    platforms.push({x: 0, y: cy, w: 600, h: 500});
-    cx = 600;
+    let curX = 0;
+    let curY = state.height - 150;
 
-    const length = 50 + (currentLevel * 15); // Niveaux plus courts (environ 60-80 blocs)
-    
-    for(let i=0; i<length; i++) {
-        let gap = Math.random() < 0.2;
-        let step = (Math.random() - 0.5) * 120;
-        cy += step;
-        if(cy > h - 80) cy = h - 80;
-        if(cy < 200) cy = 200;
+    // Start platform
+    platforms.push({x: 0, y: curY, w: 500, h: 500});
+    curX = 500;
 
-        let pw = 150 + Math.random() * 200;
+    // Procedural Gen (Short & Sweet)
+    const segments = 40 + (state.level * 10);
+    for(let i=0; i<segments; i++) {
+        let gap = Math.random() < 0.25;
+        let diff = (Math.random() - 0.5) * 150;
+        curY += diff;
+        curY = Math.max(200, Math.min(state.height - 100, curY));
+
+        let pW = 150 + Math.random() * 250;
         if(!gap) {
-            platforms.push({x: cx, y: cy, w: pw, h: 600});
-            // Items
-            if(Math.random() < 0.4) coins.push({x: cx + pw/2, y: cy - 40, r: 12, collected: false});
-            if(Math.random() < 0.15) spikes.push({x: cx + 20, y: cy - 20, w: 40, h: 25});
+            platforms.push({x: curX, y: curY, w: pW, h: 600});
+            
+            // Coins
+            if(Math.random() < 0.4) coins.push({x: curX + pW/2, y: curY - 50, active: true});
+            // Spikes
+            if(Math.random() < 0.2) spikes.push({x: curX + 50, y: curY - 20, w: 40, h: 25});
             // Powerups
-            if(i === 15) powerups.push({x: cx + pw/2, y: cy - 50, type: 'shield'});
-            if(i === 35) powerups.push({x: cx + pw/2, y: cy - 50, type: 'jump'});
+            if(i === 10) powerups.push({x: curX + pW/2, y: curY - 60, type: 'shield', active: true});
+            if(i === 25) powerups.push({x: curX + pW/2, y: curY - 60, type: 'jump', active: true});
         }
-        cx += pw + (gap ? 120 : 0);
+        curX += pW + (gap ? 130 : 2);
     }
 
-    // Fin
-    platforms.push({x: cx, y: cy, w: 400, h: 600});
-    flag = {x: cx + 150, y: cy - 100};
-    player.x = 100; player.y = cy - 100;
-    player.vx = 0; player.vy = 0;
+    // End Goal
+    platforms.push({x: curX, y: curY, w: 400, h: 500});
+    goal = {x: curX + 150, y: curY - 100};
 }
 
-// Contrôles
+// Input Handling
 let keys = {};
-let touch = { active: false, x: 0 };
+let touch = { startX: 0, active: false };
+
 window.onkeydown = e => keys[e.code] = true;
 window.onkeyup = e => keys[e.code] = false;
 
-canvas.ontouchstart = e => {
+canvas.addEventListener('touchstart', e => {
     const t = e.touches[0];
-    if(t.clientX > w/2) { if(player.grounded) jump(); }
-    else { touch.active = true; touch.x = t.clientX; }
-};
-canvas.ontouchmove = e => { if(touch.active) touch.x = e.touches[0].clientX; };
-canvas.ontouchend = () => { touch.active = false; keys['ArrowRight'] = keys['ArrowLeft'] = false; };
+    if(t.clientX > state.width / 2) {
+        if(bibou.grounded) jump();
+    } else {
+        touch.active = true;
+        touch.startX = t.clientX;
+    }
+}, {passive: false});
+
+canvas.addEventListener('touchend', () => {
+    touch.active = false;
+    keys['ArrowLeft'] = keys['ArrowRight'] = false;
+});
 
 function jump() {
-    player.vy = jumpBoost > 0 ? -20 : -14;
-    player.grounded = false;
+    bibou.vy = (bibou.superJump > 0) ? -18 : -14;
+    bibou.grounded = false;
 }
 
-function handleBtn() {
-    if(gameState === 'START' || gameState === 'GAMEOVER' || gameState === 'WIN') {
-        currentLevel = 1; score = 0; lives = 3;
-    } else if(gameState === 'CLEAR') {
-        currentLevel++;
+function startGame() {
+    document.getElementById('menu').style.display = 'none';
+    if(state.lives <= 0 || state.level > 3) {
+        state.score = 0; state.lives = 3; state.level = 1;
     }
-    hasShield = false; jumpBoost = 0;
-    gameState = 'PLAYING';
-    document.getElementById('msg-box').style.display = 'none';
-    generateLevel();
+    state.playing = true;
+    resize();
+    requestAnimationFrame(loop);
 }
 
 function update() {
-    if(gameState !== 'PLAYING') return;
+    if(!state.playing) return;
 
-    // Mouvement
-    let input = 0;
-    if(keys['ArrowRight']) input = 1;
-    if(keys['ArrowLeft']) input = -1;
+    // Movement
+    let move = 0;
+    if(keys['ArrowRight'] || (touch.active && touch.startX < state.width/4)) move = 1;
+    if(keys['ArrowLeft'] || (touch.active && touch.startX > state.width/4)) move = -1;
+    
+    // Simplification tactile : Appui zone gauche = avance, zone très gauche = recule
     if(touch.active) {
-        if(touch.x < w/4) input = -1;
-        else if(touch.x < w/2) input = 1;
+        move = (touch.startX < state.width / 4) ? -1 : 1;
     }
 
-    if(input !== 0) {
-        player.vx += input * 0.8;
-        player.dir = input;
-        player.anim += 0.2;
+    if(move !== 0) {
+        bibou.vx += move * 0.8;
+        bibou.dir = move;
     } else {
-        player.vx *= 0.85;
+        bibou.vx *= 0.85;
     }
-    
-    player.vx = Math.max(-8, Math.min(8, player.vx));
-    player.vy += 0.6; // Gravité
-    player.x += player.vx;
-    player.y += player.vy;
 
-    // Sol et Collision
-    player.grounded = false;
+    bibou.vx = Math.max(-8, Math.min(8, bibou.vx));
+    bibou.vy += 0.6; // Gravity
+    bibou.x += bibou.vx;
+    bibou.y += bibou.vy;
+
+    // Collisions Platforms
+    bibou.grounded = false;
     for(let p of platforms) {
-        if(player.x + player.w > p.x && player.x < p.x + p.w && player.y + player.h > p.y && player.y + player.h < p.y + 50) {
-            if(player.vy >= 0) {
-                player.y = p.y - player.h;
-                player.vy = 0;
-                player.grounded = true;
-            }
+        if(bibou.x + bibou.w > p.x && bibou.x < p.x + p.w &&
+           bibou.y + bibou.h > p.y && bibou.y + bibou.h < p.y + 40 && bibou.vy >= 0) {
+            bibou.y = p.y - bibou.h;
+            bibou.vy = 0;
+            bibou.grounded = true;
         }
     }
 
-    // Mort chute
-    if(player.y > h + 100) takeDamage(true);
+    // Items Hitbox (Généreuse)
+    const checkHit = (obj, margin=20) => {
+        return (bibou.x - margin < (obj.x || obj.x) + (obj.w || 20) && 
+                bibou.x + bibou.w + margin > (obj.x || obj.x) &&
+                bibou.y - margin < (obj.y || obj.y) + (obj.h || 20) && 
+                bibou.y + bibou.h + margin > (obj.y || obj.y));
+    };
 
-    // Collision Spikes
-    if(invincibility <= 0) {
-        for(let s of spikes) {
-            if(rectIntersect(player.x+5, player.y+5, player.w-10, player.h-10, s.x, s.y, s.w, s.h)) {
-                takeDamage();
-            }
+    coins.forEach(c => {
+        if(c.active && checkHit(c)) {
+            c.active = false; state.score += 10;
+            document.getElementById('score-ui').innerText = state.score;
         }
-    } else {
-        invincibility--;
+    });
+
+    powerups.forEach(p => {
+        if(p.active && checkHit(p)) {
+            p.active = false;
+            if(p.type === 'shield') bibou.shield = true;
+            if(p.type === 'jump') bibou.superJump = 600;
+        }
+    });
+
+    if(bibou.superJump > 0) bibou.superJump--;
+
+    // Hazards
+    if(state.invincible > 0) state.invincible--;
+    else {
+        spikes.forEach(s => {
+            if(checkHit(s, 5)) die();
+        });
+        if(bibou.y > state.height) die(true);
     }
 
-    // Coins (Hitbox améliorée)
-    for(let c of coins) {
-        if(!c.collected && rectIntersect(player.x-10, player.y-10, player.w+20, player.h+20, c.x-c.r, c.y-c.r, c.r*2, c.r*2)) {
-            c.collected = true;
-            score += 10;
-            document.getElementById('coins').innerText = score;
+    // Goal
+    if(bibou.x > goal.x) {
+        state.level++;
+        if(state.level > 3) win();
+        else {
+            state.playing = false;
+            showMenu("BRAVO BIBOU !", `Niveau ${state.level-1} terminé. Prêt pour le suivant ?`, "CONTINUER");
         }
     }
 
-    // Powerups
-    for(let p of powerups) {
-        if(!p.used && rectIntersect(player.x, player.y, player.w, player.h, p.x-15, p.y-15, 30, 30)) {
-            p.used = true;
-            if(p.type === 'shield') hasShield = true;
-            if(p.type === 'jump') jumpBoost = 600; // 10 secondes
-        }
-    }
+    // Cam
+    let targetCam = bibou.x - state.width / 3;
+    state.camX += (targetCam - state.camX) * 0.1;
+    if(state.camX < 0) state.camX = 0;
 
-    if(jumpBoost > 0) jumpBoost--;
-    document.getElementById('badge-shield').style.display = hasShield ? 'block' : 'none';
-    document.getElementById('badge-jump').style.display = jumpBoost > 0 ? 'block' : 'none';
-
-    // Fin de niveau
-    if(player.x > flag.x) {
-        if(currentLevel >= 3) victory();
-        else levelClear();
-    }
-
-    // Camera
-    cameraX += (player.x - cameraX - w/3) * 0.1;
-    if(cameraX < 0) cameraX = 0;
-    
-    // UI Vies
-    document.getElementById('vies').innerText = "♥".repeat(Math.max(0, lives));
+    // UI Updates
+    document.getElementById('vies-ui').innerText = "♥".repeat(state.lives);
 }
 
-function takeDamage(instant = false) {
-    if(hasShield && !instant) {
-        hasShield = false;
-        invincibility = 100;
+function die(fell = false) {
+    if(bibou.shield && !fell) {
+        bibou.shield = false;
+        state.invincible = 120;
         return;
     }
-    lives--;
-    if(lives <= 0) {
-        gameState = 'GAMEOVER';
-        showMsg("GAME OVER", "Le LHC a perdu ce soir... Recommence Tintin !");
+    state.lives--;
+    if(state.lives <= 0) {
+        state.playing = false;
+        showMenu("GAME OVER", "Les Bibous ont besoin de repos. Recommence Tintin !", "REESSAYER");
     } else {
-        player.x -= 200;
-        player.y -= 100;
-        player.vx = 0;
-        invincibility = 120;
+        bibou.x -= 250;
+        bibou.y -= 200;
+        bibou.vx = 0;
+        state.invincible = 120;
     }
 }
 
-function levelClear() {
-    gameState = 'CLEAR';
-    showMsg("NIVEAU RÉUSSI", `Bien joué Bibou ! Direction le prochain match.`);
+function win() {
+    state.playing = false;
+    showMenu("VICTOIRE !", `Tintin & Mélanie ont conquis l'univers ! Score: ${state.score}`, "REJOUER");
 }
 
-function victory() {
-    gameState = 'WIN';
-    showMsg("CHAMPION !", `INCROYABLE ! Tintin et Mélanie ont gagné la coupe ! Score: ${score}`);
-}
-
-function showMsg(title, text) {
-    document.getElementById('msg-title').innerText = title;
-    document.getElementById('msg-text').innerText = text;
-    document.getElementById('msg-box').style.display = 'block';
-}
-
-function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
-    return x2 < x1 + w1 && x2 + w2 > x1 && y2 < y1 + h1 && y2 + h2 > y1;
+function showMenu(t, txt, btn) {
+    document.getElementById('menu-title').innerText = t;
+    document.getElementById('menu-text').innerText = txt;
+    document.getElementById('menu').querySelector('button').innerText = btn;
+    document.getElementById('menu').style.display = 'flex';
 }
 
 function draw() {
-    const theme = LVL_THEMES[currentLevel];
+    if(!state.playing) return;
+    const theme = THEMES[state.level];
+    
+    // Background
     ctx.fillStyle = theme.bg;
-    ctx.fillRect(0,0,w,h);
+    ctx.fillRect(0, 0, state.width, state.height);
 
-    // Dessin décor parallaxe
-    ctx.fillStyle = theme.color + "22";
-    for(let d of deco) {
-        let dx = (d.x - cameraX * d.speed) % (w + 400);
-        if(dx < -200) dx += (w + 400);
-        if(theme.decoType === 'montagnes') {
-            ctx.beginPath();
-            ctx.moveTo(dx, h); ctx.lineTo(dx + d.w, h - d.h); ctx.lineTo(dx + d.w*2, h);
-            ctx.fill();
-        } else {
-            ctx.fillRect(dx, h - d.h, d.w, d.h);
-        }
-    }
+    // Parallax Deco
+    ctx.fillStyle = theme.secondary + "44";
+    bgItems.forEach(d => {
+        let x = (d.x - state.camX * d.speed) % (state.width + 200);
+        if(x < -100) x += state.width + 200;
+        ctx.fillRect(x, d.y, d.size, d.size);
+    });
 
     ctx.save();
-    ctx.translate(-cameraX, 0);
+    ctx.translate(-state.camX, 0);
 
-    // Plateformes
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = theme.color;
+    // Platforms
     ctx.fillStyle = "#000";
-    ctx.strokeStyle = theme.color;
-    ctx.lineWidth = 2;
-    for(let p of platforms) {
+    ctx.strokeStyle = theme.primary;
+    ctx.lineWidth = 3;
+    platforms.forEach(p => {
         ctx.fillRect(p.x, p.y, p.w, p.h);
         ctx.strokeRect(p.x, p.y, p.w, p.h);
-    }
+    });
 
     // Spikes
-    ctx.shadowColor = "#ff4757";
     ctx.fillStyle = "#ff4757";
-    for(let s of spikes) {
+    spikes.forEach(s => {
         ctx.beginPath();
         ctx.moveTo(s.x, s.y+s.h); ctx.lineTo(s.x+s.w/2, s.y); ctx.lineTo(s.x+s.w, s.y+s.h);
         ctx.fill();
-    }
+    });
 
     // Coins
-    ctx.shadowColor = "#f1c40f";
     ctx.fillStyle = "#f1c40f";
-    for(let c of coins) {
-        if(!c.collected) {
+    coins.forEach(c => {
+        if(c.active) {
             ctx.beginPath();
-            ctx.arc(c.x, c.y + Math.sin(Date.now()/200)*5, c.r, 0, Math.PI*2);
+            ctx.arc(c.x, c.y + Math.sin(Date.now()/200)*5, 12, 0, Math.PI*2);
             ctx.fill();
         }
-    }
+    });
 
     // Powerups
-    for(let p of powerups) {
-        if(!p.used) {
-            ctx.fillStyle = p.type === 'shield' ? '#1e90ff' : '#2ed573';
-            ctx.shadowColor = ctx.fillStyle;
+    powerups.forEach(p => {
+        if(p.active) {
+            ctx.fillStyle = p.type === 'shield' ? '#1e90ff' : '#2ecc71';
             ctx.fillRect(p.x-15, p.y-15 + Math.sin(Date.now()/150)*8, 30, 30);
-            ctx.strokeRect(p.x-15, p.y-15 + Math.sin(Date.now()/150)*8, 30, 30);
         }
-    }
+    });
 
-    // Flag (Bien visible au dessus du sol)
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(flag.x, flag.y, 5, 100);
-    ctx.fillStyle = theme.color;
+    // Goal Flag
+    ctx.fillStyle = "white";
+    ctx.fillRect(goal.x, goal.y, 6, 120);
+    ctx.fillStyle = theme.primary;
     ctx.beginPath();
-    ctx.moveTo(flag.x+5, flag.y); ctx.lineTo(flag.x+60, flag.y+25); ctx.lineTo(flag.x+5, flag.y+50);
+    ctx.moveTo(goal.x+6, goal.y); ctx.lineTo(goal.x+70, goal.y+30); ctx.lineTo(goal.x+6, goal.y+60);
     ctx.fill();
 
-    // Player
-    if(!(invincibility > 0 && Math.floor(Date.now()/100) % 2 === 0)) {
-        drawPlayer(player.x, player.y, theme.color);
+    // Player (Bibou)
+    if(!(state.invincible > 0 && Math.floor(Date.now()/100)%2 === 0)) {
+        drawBibou(bibou.x, bibou.y, theme.primary);
     }
 
     ctx.restore();
-    requestAnimationFrame(() => { update(); draw(); });
+    update();
+    requestAnimationFrame(draw);
 }
 
-function drawPlayer(x, y, color) {
+function drawBibou(x, y, color) {
     ctx.save();
-    ctx.translate(x + player.w/2, y + player.h/2);
-    if(player.dir === -1) ctx.scale(-1, 1);
+    ctx.translate(x + bibou.w/2, y + bibou.h/2);
+    if(bibou.dir === -1) ctx.scale(-1, 1);
 
-    // Corps (Style Hockeyeur Cyber)
-    ctx.fillStyle = "#e74c3c"; // Rouge LHC
-    ctx.fillRect(-15, -15, 30, 35);
-    ctx.fillStyle = "#fff"; // Blanc LHC
-    ctx.fillRect(-15, -5, 30, 8);
-    
-    // Casque
-    ctx.fillStyle = "#2c3e50";
+    // Body (Bibou is basically a cute tech blob)
+    ctx.fillStyle = "#ff4757"; // Tintin's Red
     ctx.beginPath();
-    ctx.arc(0, -25, 18, 0, Math.PI*2);
+    ctx.roundRect(-20, -25, 40, 50, 10);
     ctx.fill();
-    ctx.fillStyle = "#0ff"; // Visière
-    ctx.fillRect(5, -30, 12, 5);
+    
+    // Head detail
+    ctx.fillStyle = "white";
+    ctx.fillRect(-15, -15, 30, 10); // Visor
+    ctx.fillStyle = "#2f3542";
+    ctx.fillRect(5, -12, 5, 5); // Eye
 
-    // Jambes
-    let legY = Math.sin(player.anim) * 10;
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(-8, 20); ctx.lineTo(-12, 35 + legY); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(8, 20); ctx.lineTo(12, 35 - legY); ctx.stroke();
-
-    // Shield effect
-    if(hasShield) {
+    // Shield
+    if(bibou.shield) {
         ctx.strokeStyle = "#1e90ff";
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, 50, 0, Math.PI*2); ctx.stroke();
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(0,0, 45, 0, Math.PI*2); ctx.stroke();
     }
-    // Jump effect
-    if(jumpBoost > 0) {
-        ctx.fillStyle = "#2ed57355";
-        ctx.beginPath(); ctx.moveTo(-20, 30); ctx.lineTo(0, 50); ctx.lineTo(20, 30); ctx.fill();
+    // Super Jump Glow
+    if(bibou.superJump > 0) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#2ecc71";
     }
 
     ctx.restore();
 }
 
-init();
-draw();
+// Start sequence
+resize();
 </script>
 </body>
 </html>

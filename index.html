@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0d0d15">
-    <title>Cyber Bibou 2077</title>
+    <title>Cyber Bibou 2077 v2</title>
     
     <!-- PWA Config -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,7 +23,7 @@
             overflow: hidden;
             background-color: #0d0d15;
             touch-action: none;
-            font-family: 'Orbitron', sans-serif; /* Police Futuriste */
+            font-family: 'Orbitron', sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -46,16 +46,35 @@
             box-sizing: border-box;
             z-index: 10;
         }
+        .top-hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+        }
         .hud-text {
-            color: #0ff; /* Cyan néon */
+            color: #0ff;
             font-size: 20px;
             text-shadow: 0 0 10px #0ff;
             font-weight: bold;
             letter-spacing: 2px;
         }
+        #lives-display {
+            color: #ff3333;
+            text-shadow: 0 0 10px #ff3333;
+            font-size: 24px;
+        }
         #level-indicator {
-            color: #f0f; /* Magenta néon */
+            color: #f0f;
             text-shadow: 0 0 10px #f0f;
+        }
+        #powerup-status {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            color: #fff;
+            font-size: 16px;
+            display: none; 
         }
         #message-box {
             position: absolute;
@@ -131,10 +150,12 @@
     </div>
 
     <div id="ui-layer">
-        <div style="display:flex; justify-content:space-between; width:100%;">
+        <div class="top-hud">
             <div class="hud-text" id="score-board">CREDITS: 0</div>
+            <div class="hud-text" id="lives-display">❤❤❤</div>
             <div class="hud-text" id="level-indicator">NIVEAU 1</div>
         </div>
+        <div id="powerup-status">ACTIF: <span id="powerup-name"></span></div>
         <div id="controls-hint">GAUCHE : MOTEUR // DROITE : PROPULSEUR</div>
     </div>
 
@@ -149,7 +170,7 @@
 <script>
 /**
  * CYBER BIBOU 2077
- * Engine v3.0 - Polished & Optimized
+ * Engine v3.1 - Enhanced Edition
  */
 
 const canvas = document.getElementById('gameCanvas');
@@ -164,29 +185,35 @@ const JUMP_FORCE = -15;
 const TILE_SIZE = 50;
 
 // --- ETATS DU JEU ---
-let gameState = 'start'; // start, playing, level_complete, gameover, win
+let gameState = 'start'; 
 let currentLevel = 1;
-let coins = 0; // "Credits"
+let coins = 0;
+let lives = 3;
 let cameraX = 0;
 let animationFrameId;
-let gameTime = 0; // Pour les animations
+let gameTime = 0; 
+
+// Powerup state
+let activePowerup = null; // 'magnet', 'shield'
+let powerupTimer = 0;
 
 // --- DONNEES DES NIVEAUX ---
-// Plus on avance, plus c'est dur (trous plus grands, plateformes plus traîtres)
 const LEVEL_CONFIG = {
-    1: { length: 150, gapProb: 0.1, spikeProb: 0.2, color: '#00ffff' }, // Cyan
-    2: { length: 220, gapProb: 0.2, spikeProb: 0.4, color: '#ff00ff' }, // Magenta
-    3: { length: 300, gapProb: 0.25, spikeProb: 0.5, color: '#ffff00' } // Jaune
+    1: { length: 150, gapProb: 0.1, spikeProb: 0.2, color: '#00ffff', bgStart:'#050510', bgEnd:'#1a1a2e' },
+    2: { length: 220, gapProb: 0.2, spikeProb: 0.4, color: '#ff00ff', bgStart:'#1a051a', bgEnd:'#2e1a2e' },
+    3: { length: 300, gapProb: 0.25, spikeProb: 0.5, color: '#ffff00', bgStart:'#1a1a05', bgEnd:'#2e2e1a' }
 };
 
 // --- ENTITÉS ---
 let platforms = [];
 let spikes = [];
 let collectibles = [];
+let powerups = []; // Nouveauté
 let particles = [];
-let stars = []; // Fond étoilé
-let cityBuildings = []; // Skyline
+let stars = [];
+let cityBuildings = [];
 let flag = null;
+let trail = []; // Nouveauté : Traînée
 
 const player = {
     x: 100,
@@ -197,7 +224,8 @@ const player = {
     vy: 0,
     grounded: false,
     facingRight: true,
-    state: 'idle'
+    state: 'idle',
+    invincible: false // Pour le respawn
 };
 
 // Inputs
@@ -215,7 +243,6 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function generateBackgroundElements() {
-    // 1. Étoiles (statique très loin)
     stars = [];
     for(let i=0; i<100; i++) {
         stars.push({
@@ -226,15 +253,13 @@ function generateBackgroundElements() {
         });
     }
 
-    // 2. Skyline Ville (Moyen plan)
-    // On génère un motif répété
     cityBuildings = [];
     let x = 0;
-    while(x < width * 2) { // Assez large pour le looping
+    while(x < width * 2) { 
         let w = 40 + Math.random() * 80;
         let h = 100 + Math.random() * 300;
         cityBuildings.push({x: x, w: w, h: h});
-        x += w + 5; // petit espace
+        x += w + 5; 
     }
 }
 
@@ -242,13 +267,13 @@ function initLevel(levelNum) {
     platforms = [];
     spikes = [];
     collectibles = [];
+    powerups = [];
     particles = [];
+    trail = [];
     cameraX = 0;
     
-    player.x = 100;
-    player.y = 100;
-    player.vx = 0;
-    player.vy = 0;
+    // Reset Player Position
+    respawnPlayer(true);
 
     const config = LEVEL_CONFIG[levelNum];
     const mainColor = config.color;
@@ -257,44 +282,40 @@ function initLevel(levelNum) {
     document.getElementById('level-indicator').innerText = `NIVEAU ${levelNum}`;
     document.getElementById('level-indicator').style.color = mainColor;
     document.getElementById('level-indicator').style.textShadow = `0 0 10px ${mainColor}`;
+    updateLivesDisplay();
 
     // Génération procédurale
     let cx = 0;
     let cy = height - TILE_SIZE * 2;
 
-    // Platforme de départ
     platforms.push({x: -100, y: cy, w: 500, h: height, type: 'start'});
     cx += 400;
 
     for(let i=0; i < config.length; i++) {
-        // Logique de trous (Gaps)
         if(Math.random() < config.gapProb) {
-            let gapSize = TILE_SIZE * (2 + Math.random() * 2); // Trou variable
+            let gapSize = TILE_SIZE * (2 + Math.random() * 2);
             cx += gapSize;
         } 
         
-        // Logique de hauteur
         if (Math.random() < 0.3) {
-            let hChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE; // -50, 0, +50
+            let hChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE; 
             cy += hChange;
         }
         
-        // Clamp hauteur
         if(cy > height - TILE_SIZE) cy = height - TILE_SIZE;
         if(cy < height - 400) cy = height - 400;
 
         let platWidth = TILE_SIZE * (2 + Math.random() * 3);
         
-        // Création plateforme
         platforms.push({
             x: cx, 
             y: cy, 
             w: platWidth, 
-            h: height - cy + 200, // On remplit jusqu'en bas pour le style "bloc"
+            h: height - cy + 200, 
             type: 'normal'
         });
 
-        // Ajouter des pièges (Spikes)
+        // Pièges
         if(Math.random() < config.spikeProb) {
             spikes.push({
                 x: cx + platWidth/2 - 15,
@@ -304,12 +325,26 @@ function initLevel(levelNum) {
             });
         }
 
-        // Ajouter des Crédits (Coins)
+        // Crédits
         if(Math.random() < 0.4) {
             collectibles.push({
                 x: cx + platWidth/2,
-                y: cy - 60 - (Math.random() * 100), // Parfois haut
+                y: cy - 60 - (Math.random() * 100), 
                 r: 10,
+                active: true,
+                offset: Math.random() * Math.PI,
+                w: 20, // Pour la hitbox rectangulaire
+                h: 20
+            });
+        }
+
+        // Power-ups (Rare)
+        if(Math.random() < 0.05) { // 5% de chance par plateforme
+            let type = Math.random() > 0.5 ? 'shield' : 'magnet';
+            powerups.push({
+                x: cx + platWidth/2,
+                y: cy - 100,
+                type: type,
                 active: true,
                 offset: Math.random() * Math.PI
             });
@@ -318,10 +353,28 @@ function initLevel(levelNum) {
         cx += platWidth;
     }
 
-    // Fin du niveau
     cx += 100;
     platforms.push({x: cx, y: cy, w: 600, h: height, type: 'end'});
-    flag = { x: cx + 300, y: cy - 10 };
+    // Correction: Drapeau posé SUR le sol (cy - 100 pour que le bas soit à cy)
+    flag = { x: cx + 300, y: cy - 100 };
+}
+
+function respawnPlayer(fullReset = false) {
+    player.x = 100;
+    player.y = 100;
+    player.vx = 0;
+    player.vy = 0;
+    player.invincible = true;
+    player.alpha = 0.5; // Effet visuel
+    
+    // Reset Powerups
+    activePowerup = null;
+    document.getElementById('powerup-status').style.display = 'none';
+
+    setTimeout(() => {
+        player.invincible = false;
+        player.alpha = 1;
+    }, 2000); // 2 secondes d'invulnérabilité
 }
 
 // --- LOGIQUE GLOBALE ---
@@ -332,6 +385,7 @@ function nextAction() {
     if(gameState === 'start' || gameState === 'gameover' || gameState === 'win') {
         currentLevel = 1;
         coins = 0;
+        lives = 3;
         document.getElementById('score-board').innerText = "CREDITS: 0";
         gameState = 'playing';
         initLevel(currentLevel);
@@ -339,7 +393,6 @@ function nextAction() {
     else if (gameState === 'level_complete') {
         currentLevel++;
         if(currentLevel > 3) {
-            // Victoire totale
             winGame();
             return;
         }
@@ -351,9 +404,40 @@ function nextAction() {
     if(!animationFrameId) loop();
 }
 
+function handleDeath() {
+    if(player.invincible) return;
+
+    // Check Bouclier
+    if(activePowerup === 'shield') {
+        activePowerup = null;
+        document.getElementById('powerup-status').style.display = 'none';
+        player.invincible = true;
+        player.vy = -10; // Petit rebond
+        createParticles(player.x + player.w/2, player.y + player.h/2, 20, '#00ff00'); // Particules bouclier brisé
+        setTimeout(() => { player.invincible = false; }, 1000);
+        return;
+    }
+
+    lives--;
+    updateLivesDisplay();
+    createParticles(player.x + player.w/2, player.y + player.h/2, 30, '#ff0000');
+
+    if(lives > 0) {
+        respawnPlayer();
+    } else {
+        gameOver();
+    }
+}
+
+function updateLivesDisplay() {
+    let hearts = "";
+    for(let i=0; i<lives; i++) hearts += "❤";
+    document.getElementById('lives-display').innerText = hearts;
+}
+
 function gameOver() {
     gameState = 'gameover';
-    showModal("ÉCHEC CRITIQUE", "Bibou a crashé le système.<br>Mathieu t'attend pour recommencer.", "#ff0000", "REBOOT");
+    showModal("ÉCHEC CRITIQUE", "Système corrompu.<br>Plus aucune vie disponible.", "#ff0000", "REBOOT");
 }
 
 function levelComplete() {
@@ -363,7 +447,7 @@ function levelComplete() {
 
 function winGame() {
     gameState = 'win';
-    showModal("MISSION ACCOMPLIE", `Félicitations Tintin !<br>Tu as dominé la Cyber-City avec ${coins} crédits.<br>Mélanie est fière de toi !`, "#ffff00", "NOUVELLE PARTIE");
+    showModal("MISSION ACCOMPLIE", `Légende Cybernétique !<br>Score Final : ${coins} crédits.`, "#ffff00", "NOUVELLE PARTIE");
 }
 
 function showModal(title, text, color, btnText) {
@@ -385,20 +469,35 @@ function showModal(title, text, color, btnText) {
     box.style.display = 'block';
 }
 
-// --- CONTROLES (Multi-touch) ---
+function activatePowerup(type) {
+    activePowerup = type;
+    powerupTimer = 300; // Frames (env 5-6 sec)
+    
+    const ui = document.getElementById('powerup-status');
+    const name = document.getElementById('powerup-name');
+    ui.style.display = 'block';
+    
+    if(type === 'shield') {
+        name.innerText = "BOUCLIER ACTIF";
+        name.style.color = '#00ff00';
+    } else if (type === 'magnet') {
+        name.innerText = "AIMANT ACTIF";
+        name.style.color = '#aa00ff';
+    }
+}
+
+// --- CONTROLES ---
 
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     for(let i=0; i<e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
         if(t.clientX < width/2) {
-            // Gauche: Mouvement
             if(moveFingerId === null) {
                 moveFingerId = t.identifier;
                 touchStartX = t.clientX;
             }
         } else {
-            // Droite: Saut
             if(player.grounded) {
                 player.vy = JUMP_FORCE;
                 player.grounded = false;
@@ -417,7 +516,6 @@ canvas.addEventListener('touchmove', (e) => {
             if(delta > 15) inputX = 1;
             else if(delta < -15) inputX = -1;
             else inputX = 0;
-            
             if(Math.abs(delta) > 50) touchStartX = t.clientX - (50 * Math.sign(delta));
         }
     }
@@ -433,7 +531,6 @@ canvas.addEventListener('touchend', (e) => {
     }
 });
 
-// Clavier PC
 window.addEventListener('keydown', (e) => {
     if(e.code === 'ArrowRight') inputX = 1;
     if(e.code === 'ArrowLeft') inputX = -1;
@@ -450,15 +547,40 @@ function update() {
     if(gameState !== 'playing') return;
     gameTime += 0.05;
 
+    // Powerup Timer
+    if(activePowerup && activePowerup !== 'shield') { // Shield reste jusqu'à hit
+        powerupTimer--;
+        if(powerupTimer <= 0) {
+            activePowerup = null;
+            document.getElementById('powerup-status').style.display = 'none';
+        }
+    }
+
+    // Gestion de la Traînée (Trail)
+    if(Math.abs(player.vx) > 1) {
+        trail.push({
+            x: player.x,
+            y: player.y,
+            w: player.w,
+            h: player.h,
+            alpha: 0.6,
+            facingRight: player.facingRight
+        });
+    }
+    // Nettoyage traînée
+    for(let i=trail.length-1; i>=0; i--) {
+        trail[i].alpha -= 0.05;
+        if(trail[i].alpha <= 0) trail.splice(i, 1);
+    }
+
     // Physique
     if(inputX !== 0) {
-        player.vx += inputX * 0.8; // Accel
+        player.vx += inputX * 0.8;
         player.facingRight = inputX > 0;
     } else {
         player.vx *= FRICTION;
     }
     
-    // Clamp Vitesse
     if(player.vx > MAX_SPEED) player.vx = MAX_SPEED;
     if(player.vx < -MAX_SPEED) player.vx = -MAX_SPEED;
 
@@ -469,20 +591,15 @@ function update() {
     // Collisions Plateformes
     player.grounded = false;
     for(let p of platforms) {
-        // Check simple AABB
         if(player.x < p.x + p.w && player.x + player.w > p.x &&
            player.y < p.y + p.h && player.y + player.h > p.y) {
             
-            // On vérifie la collision précédente pour savoir d'où on vient
             let prevY = player.y - player.vy;
-            
-            // Si on était au dessus, on atterrit
             if(prevY + player.h <= p.y + 15 && player.vy >= 0) {
                 player.y = p.y - player.h;
                 player.vy = 0;
                 player.grounded = true;
             }
-            // Sinon c'est un mur
             else if (player.x + player.w/2 < p.x + p.w/2) {
                  player.x = p.x - player.w;
                  player.vx = 0;
@@ -494,23 +611,40 @@ function update() {
     }
 
     // Mort chute
-    if(player.y > height + 100) gameOver();
+    if(player.y > height + 100) handleDeath();
 
     // Pièges
     for(let s of spikes) {
-        // Hitbox plus gentille
         if(player.x + 10 < s.x + s.w && player.x + player.w - 10 > s.x &&
            player.y + 10 < s.y + s.h && player.y + player.h > s.y) {
-            gameOver();
+            handleDeath();
         }
     }
 
-    // Collectibles
+    // Collectibles (Coins) - Hitbox améliorée (AABB)
     for(let c of collectibles) {
         if(c.active) {
-            let dx = (player.x + player.w/2) - c.x;
-            let dy = (player.y + player.h/2) - (c.y + Math.sin(gameTime + c.offset)*5);
-            if(Math.sqrt(dx*dx + dy*dy) < player.w/2 + c.r) {
+            // Effet Aimant
+            if(activePowerup === 'magnet') {
+                let dist = Math.sqrt(Math.pow(player.x - c.x, 2) + Math.pow(player.y - c.y, 2));
+                if(dist < 300) {
+                    c.x += (player.x + player.w/2 - c.x) * 0.1;
+                    c.y += (player.y + player.h/2 - c.y) * 0.1;
+                }
+            }
+
+            // Hitbox Rectangle vs Rectangle
+            // c.x est le centre, donc on calcule les bords
+            let cLeft = c.x - c.w/2;
+            let cRight = c.x + c.w/2;
+            let cTop = c.y - c.h/2;
+            let cBottom = c.y + c.h/2;
+
+            if (player.x < cRight &&
+                player.x + player.w > cLeft &&
+                player.y < cBottom &&
+                player.y + player.h > cTop) {
+                
                 c.active = false;
                 coins++;
                 document.getElementById('score-board').innerText = `CREDITS: ${coins}`;
@@ -519,12 +653,28 @@ function update() {
         }
     }
 
+    // Powerups
+    for(let p of powerups) {
+        if(p.active) {
+             // Simple distance check pour powerups
+            let dx = (player.x + player.w/2) - p.x;
+            let dy = (player.y + player.h/2) - p.y;
+            if(Math.sqrt(dx*dx + dy*dy) < 40) {
+                p.active = false;
+                activatePowerup(p.type);
+                createParticles(p.x, p.y, 20, p.type === 'shield' ? '#00ff00' : '#aa00ff');
+            }
+        }
+    }
+
     // Drapeau
-    if(Math.abs(player.x - flag.x) < 50 && Math.abs(player.y - flag.y) < 100) {
+    // Le drapeau est à flag.x, flag.y. C'est un mat de 100px de haut.
+    if(player.x < flag.x + 50 && player.x + player.w > flag.x &&
+       player.y < flag.y + 100 && player.y + player.h > flag.y) {
         levelComplete();
     }
 
-    // Caméra (Suivi fluide)
+    // Caméra
     let targetCam = player.x - width * 0.3;
     if(targetCam < 0) targetCam = 0;
     cameraX += (targetCam - cameraX) * 0.1;
@@ -543,24 +693,19 @@ function update() {
 // --- RENDU (DRAW) ---
 
 function draw() {
-    // Fond
-    let lvlColor = LEVEL_CONFIG[currentLevel].color;
+    let config = LEVEL_CONFIG[currentLevel];
+    let lvlColor = config.color;
     
-    // Dégradé Ciel
+    // Dégradé Ciel Dynamique
     let grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, '#050510');
-    grad.addColorStop(1, '#1a1a2e');
+    grad.addColorStop(0, config.bgStart);
+    grad.addColorStop(1, config.bgEnd);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
 
-    // --- ARRIÈRE PLAN (PARALLAX FIXÉ) ---
-    // Le secret : On ne bouge pas les objets, on bouge le point de départ du dessin
-    // avec un modulo (%) pour que ça boucle à l'infini.
-
-    // 1. Étoiles (Vitesse très lente)
+    // Étoiles
     ctx.fillStyle = '#fff';
     for(let s of stars) {
-        // Calcul position écran avec parallax
         let sx = (s.x - cameraX * 0.05) % width;
         if(sx < 0) sx += width;
         ctx.globalAlpha = s.alpha;
@@ -568,22 +713,21 @@ function draw() {
     }
     ctx.globalAlpha = 1;
 
-    // 2. Ville (Vitesse moyenne)
-    ctx.fillStyle = '#16213e'; // Bleu nuit
-    ctx.shadowBlur = 0;
+    // Ville
+    ctx.fillStyle = config.bgEnd; // Couleur sombre de base
+    // Légère teinte de la couleur du niveau sur la ville
+    ctx.shadowColor = lvlColor;
+    ctx.shadowBlur = 5;
+    
     let cityParallax = cameraX * 0.2;
-    // On dessine la "tranche" de ville visible 2 fois pour assurer la continuité
-    // C'est une simplification efficace pour canvas
     let cityOffset = -(cityParallax % width);
-    drawCityLayer(cityOffset);
-    drawCityLayer(cityOffset + width); // La copie qui suit
+    drawCityLayer(cityOffset, lvlColor);
+    drawCityLayer(cityOffset + width, lvlColor);
 
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // --- PREMIER PLAN (JEU) ---
-
-    // Plateformes (Style TRON)
+    // Plateformes
     ctx.shadowBlur = 10;
     ctx.shadowColor = lvlColor;
     ctx.strokeStyle = lvlColor;
@@ -595,7 +739,7 @@ function draw() {
             ctx.fillRect(p.x, p.y, p.w, p.h);
             ctx.strokeRect(p.x, p.y, p.w, p.h);
             
-            // Grille sur les plateformes
+            // Grille
             ctx.save();
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -614,8 +758,8 @@ function draw() {
         }
     }
 
-    // Pics (Laser)
-    ctx.fillStyle = '#ff0055'; // Rouge laser
+    // Pics
+    ctx.fillStyle = '#ff0055'; 
     ctx.shadowColor = '#ff0055';
     ctx.shadowBlur = 15;
     for(let s of spikes) {
@@ -628,31 +772,64 @@ function draw() {
         }
     }
 
-    // Collectibles (Energy Cells)
+    // Collectibles
     ctx.shadowBlur = 20;
-    ctx.shadowColor = '#ffd700'; // Or
+    ctx.shadowColor = '#ffd700';
     for(let c of collectibles) {
         if(c.active && c.x + c.r > cameraX && c.x - c.r < cameraX + width) {
             let floatY = Math.sin(gameTime + c.offset) * 8;
-            
-            // Forme Hexagonale
             drawHexagon(c.x, c.y + floatY, c.r, '#ffd700');
         }
     }
 
-    // Drapeau (Holo-Flag)
+    // Powerups
+    for(let p of powerups) {
+        if(p.active && p.x > cameraX && p.x < cameraX + width) {
+            let floatY = Math.sin(gameTime + p.offset * 2) * 5;
+            let color = p.type === 'shield' ? '#00ff00' : '#aa00ff';
+            
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = color;
+            
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + floatY, 15, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Icone dedans
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.type === 'shield' ? 'S' : 'M', p.x, p.y + floatY);
+        }
+    }
+
+    // Drapeau
     ctx.shadowColor = lvlColor;
     ctx.fillStyle = '#fff';
-    ctx.fillRect(flag.x, flag.y, 4, 100); // Mat
+    // Mât
+    ctx.fillRect(flag.x, flag.y, 4, 100); 
     
-    // Le drapeau est un hologramme mouvant
-    ctx.fillStyle = `rgba(${lvlColor === '#00ffff' ? '0,255,255' : '255,0,255'}, 0.5)`;
+    // Voile Holographique
+    ctx.fillStyle = `rgba(${lvlColor === '#00ffff' ? '0,255,255' : (lvlColor === '#ff00ff' ? '255,0,255' : '255,255,0')}, 0.5)`;
     ctx.beginPath();
     ctx.moveTo(flag.x + 4, flag.y + 10);
     ctx.lineTo(flag.x + 80, flag.y + 30 + Math.sin(gameTime)*5);
     ctx.lineTo(flag.x + 4, flag.y + 60);
     ctx.fill();
 
+    // Traînée Néon (Derrière le joueur)
+    for(let t of trail) {
+        ctx.save();
+        ctx.globalAlpha = t.alpha * 0.5;
+        ctx.translate(t.x + t.w/2, t.y + t.h/2);
+        if (!t.facingRight) ctx.scale(-1, 1);
+        ctx.fillStyle = lvlColor; // Couleur du niveau pour la traînée
+        ctx.fillRect(-15, -20, 30, 40); // Silhouette simplifiée
+        ctx.restore();
+    }
+    ctx.globalAlpha = 1;
 
     // Particules
     for(let p of particles) {
@@ -662,29 +839,34 @@ function draw() {
     }
     ctx.globalAlpha = 1;
 
-    // --- CYBER BIBOU ---
-    drawCyberBibou();
+    // Joueur
+    if(player.invincible) {
+        ctx.globalAlpha = 0.5 + Math.sin(gameTime * 20) * 0.3; // Clignotement
+    }
+    drawCyberBibou(lvlColor);
+    ctx.globalAlpha = 1;
 
     ctx.restore();
 }
 
-function drawCityLayer(offsetX) {
-    ctx.fillStyle = '#1a1a2e'; // Silhouette
+function drawCityLayer(offsetX, color) {
+    ctx.fillStyle = '#101015'; 
     for(let b of cityBuildings) {
-        // On dessine le bâtiment avec le décalage calculé
         let drawX = b.x + offsetX;
-        if(drawX > -100 && drawX < width) { // Optimisation
+        if(drawX > -100 && drawX < width) {
             ctx.fillRect(drawX, height - b.h, b.w, b.h);
             
-            // Fenêtres aléatoires allumées
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; // Cyan light
-            if(b.w > 20) { // Si assez large
+            // Fenêtres colorées selon le niveau
+            ctx.fillStyle = color; 
+            ctx.globalAlpha = 0.3;
+            if(b.w > 20) {
                 for(let wy = height - b.h + 10; wy < height; wy += 40) {
-                    if((b.x + wy) % 7 === 0) // Pseudo random basé sur position
+                    if((b.x + wy) % 7 === 0) 
                         ctx.fillRect(drawX + 10, wy, b.w - 20, 5);
                 }
             }
-            ctx.fillStyle = '#1a1a2e'; // Reset couleur batiment
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#101015';
         }
     }
 }
@@ -699,15 +881,14 @@ function drawHexagon(x, y, r, color) {
     ctx.fill();
 }
 
-function drawCyberBibou() {
+function drawCyberBibou(glowColor) {
     let px = player.x;
     let py = player.y;
     let pw = player.w;
     let ph = player.h;
 
-    // Animation
     let legCycle = 0;
-    if(Math.abs(player.vx) > 0.5 && !player.grounded) legCycle = 0.5; // Saut
+    if(Math.abs(player.vx) > 0.5 && !player.grounded) legCycle = 0.5;
     else if(Math.abs(player.vx) > 0.5) legCycle = Math.sin(gameTime * 2);
 
     ctx.save();
@@ -715,13 +896,24 @@ function drawCyberBibou() {
     if (!player.facingRight) ctx.scale(-1, 1);
 
     ctx.shadowBlur = 10;
-    ctx.shadowColor = '#e74c3c'; // Glow Rouge LHC
+    ctx.shadowColor = '#e74c3c'; 
 
-    // Corps (Armure High-Tech)
-    ctx.fillStyle = '#e74c3c'; // Rouge
+    // Bouclier Visuel
+    if(activePowerup === 'shield') {
+        ctx.beginPath();
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.arc(0, 0, 50, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        ctx.fill();
+    }
+
+    // Corps
+    ctx.fillStyle = '#e74c3c';
     ctx.fillRect(-15, -20, 30, 40);
     
-    // Plastron Blanc (Logo LHC stylisé)
+    // Plastron
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.moveTo(-10, -20);
@@ -729,22 +921,21 @@ function drawCyberBibou() {
     ctx.lineTo(0, 5);
     ctx.fill();
 
-    // Tête (Casque intégral)
-    ctx.fillStyle = '#2c3e50'; // Sombre
+    // Tête
+    ctx.fillStyle = '#2c3e50';
     ctx.beginPath();
     ctx.arc(0, -30, 16, 0, Math.PI*2);
     ctx.fill();
 
-    // Visière (Néon)
-    ctx.fillStyle = '#0ff'; // Cyan
-    ctx.fillRect(5, -34, 10, 6); // Oeil visière
+    // Visière
+    ctx.fillStyle = '#0ff';
+    ctx.fillRect(5, -34, 10, 6);
 
-    // Jetpack / Sac à dos
+    // Jetpack
     ctx.fillStyle = '#555';
     ctx.fillRect(-22, -25, 8, 30);
-    // Flamme réacteur si mouvement
     if(Math.abs(player.vx) > 1) {
-        ctx.fillStyle = '#0ff';
+        ctx.fillStyle = glowColor; // Jetpack prend la couleur du niveau aussi
         ctx.beginPath();
         ctx.moveTo(-18, 5);
         ctx.lineTo(-22, 15);
@@ -752,18 +943,16 @@ function drawCyberBibou() {
         ctx.fill();
     }
 
-    // Jambes Robotiques
+    // Jambes
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     
-    // Jambe Arrière
     ctx.beginPath();
     ctx.moveTo(-5, 20);
     ctx.lineTo(-5 - Math.sin(legCycle)*15, 35);
     ctx.stroke();
 
-    // Jambe Avant
     ctx.beginPath();
     ctx.moveTo(10, 20);
     ctx.lineTo(10 + Math.sin(legCycle)*15, 35);
@@ -798,14 +987,11 @@ function loop() {
     animationFrameId = requestAnimationFrame(loop);
 }
 
-// Start
 resize();
 generateBackgroundElements();
-// Affiche le message de départ
 document.getElementById('message-box').style.display = 'block';
 
 </script>
 </body>
 </html>
-
 

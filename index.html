@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#2c3e50">
-    <title>Super Bibou Run</title>
+    <meta name="theme-color" content="#0d0d15">
+    <title>Cyber Bibou 2077</title>
     
-    <!-- Configuration PWA : Force le mode Paysage sur mobile -->
+    <!-- PWA Config -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="BibouRun">
-    <!-- Manifest avec orientation paysage -->
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlN1cGVyIEJpYm91IFJ1biIsCiAgInNob3J0X25hbWUiOiAiQmlib3VSdW4iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiZnVsbHNjcmVlbiIsCiAgIm9yaWVudGF0aW9uIjogImxhbmRzY2FwZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzJjM2U1MCIiwKICAidGhlbWVfY29sb3IiOiAiIzJjM2U1MCIKfQ==">
+    <meta name="apple-mobile-web-app-title" content="CyberBibou">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIkN5YmVyIEJpYm91IDIwNzciLAogICJzaG9ydF9uYW1lIjogIkN5YmVyQmlib3UiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAiZnVsbHNjcmVlbiIsCiAgIm9yaWVudGF0aW9uIjogImxhbmRzY2FwZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGQxNSIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBkMTUiCn0=">
     
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #87CEEB;
+            background-color: #0d0d15;
             touch-action: none;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Orbitron', sans-serif; /* Police Futuriste */
             user-select: none;
             -webkit-user-select: none;
         }
@@ -45,54 +46,61 @@
             box-sizing: border-box;
             z-index: 10;
         }
-        #score-board {
-            font-size: 24px;
-            color: white;
+        .hud-text {
+            color: #0ff; /* Cyan néon */
+            font-size: 20px;
+            text-shadow: 0 0 10px #0ff;
             font-weight: bold;
-            text-shadow: 2px 2px 0 #000;
+            letter-spacing: 2px;
+        }
+        #level-indicator {
+            color: #f0f; /* Magenta néon */
+            text-shadow: 0 0 10px #f0f;
         }
         #message-box {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(13, 13, 21, 0.95);
             color: white;
-            padding: 30px;
-            border-radius: 15px;
+            padding: 40px;
+            border-radius: 10px;
             text-align: center;
             display: none;
             pointer-events: auto;
-            border: 3px solid #e74c3c;
+            border: 2px solid #0ff;
+            box-shadow: 0 0 20px #0ff, inset 0 0 20px rgba(0, 255, 255, 0.2);
             z-index: 20;
-            min-width: 300px;
+            min-width: 320px;
         }
         button {
-            background: #e74c3c;
-            color: white;
-            border: none;
+            background: transparent;
+            color: #0ff;
+            border: 2px solid #0ff;
             padding: 15px 30px;
             font-size: 20px;
-            border-radius: 8px;
             margin-top: 20px;
             cursor: pointer;
-            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px #0ff;
+            transition: all 0.2s;
         }
         button:active {
-            background: #c0392b;
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
         }
         #controls-hint {
             position: absolute;
             bottom: 20px;
             width: 100%;
             text-align: center;
-            color: rgba(255,255,255,0.8);
-            font-size: 16px;
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
             pointer-events: none;
-            text-shadow: 1px 1px 0 #000;
         }
-
-        /* Écran pour forcer la rotation */
         #rotate-screen {
             display: none;
             position: fixed;
@@ -100,15 +108,15 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #2c3e50;
+            background: #0d0d15;
             z-index: 9999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: #0ff;
             text-align: center;
+            font-family: 'Orbitron', sans-serif;
         }
-        /* Détection Portrait via CSS */
         @media screen and (orientation: portrait) {
             #rotate-screen { display: flex; }
         }
@@ -116,229 +124,285 @@
 </head>
 <body>
 
-    <!-- Écran de rotation forcé -->
     <div id="rotate-screen">
-        <div style="font-size: 50px;">🔄</div>
-        <h2>Tourne ton téléphone !</h2>
-        <p>Ce jeu se joue en mode paysage<br>pour mieux voir les pièges !</p>
+        <div style="font-size: 60px; margin-bottom:20px;">⚠️</div>
+        <h2>SYSTÈME EN PAUSE</h2>
+        <p>Tourne ton terminal en mode paysage<br>pour activer le protocole Cyber-Bibou.</p>
     </div>
 
     <div id="ui-layer">
-        <div id="score-board">Pièces: 0 | Vies: 3</div>
-        <div id="controls-hint">👈 Pouce gauche: Bouger &nbsp;&nbsp;&nbsp; 👉 Pouce droit: Sauter</div>
+        <div style="display:flex; justify-content:space-between; width:100%;">
+            <div class="hud-text" id="score-board">CREDITS: 0</div>
+            <div class="hud-text" id="level-indicator">NIVEAU 1</div>
+        </div>
+        <div id="controls-hint">GAUCHE : MOTEUR // DROITE : PROPULSEUR</div>
     </div>
 
     <div id="message-box">
-        <h2 id="msg-title" style="margin-top:0;">Titre</h2>
-        <p id="msg-text">Texte</p>
-        <button onclick="startGame()">C'est parti !</button>
+        <h2 id="msg-title" style="margin-top:0; color:#0ff; text-shadow:0 0 10px #0ff;">CYBER BIBOU</h2>
+        <p id="msg-text" style="font-family: sans-serif; line-height: 1.5;">Prêt à pirater le système ?</p>
+        <button id="msg-btn" onclick="nextAction()">LANCER</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
 /**
- * SUPER BIBOU RUN 2.0
- * Avec parallax, décors et perso agrandi
+ * CYBER BIBOU 2077
+ * Engine v3.0 - Polished & Optimized
  */
 
-// --- Configuration ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let width, height;
 
-// États du jeu
-let gameState = 'start'; // start, playing, gameover, win
-let coins = 0;
-let lives = 3;
+// --- CONFIGURATION ---
+const GRAVITY = 0.6;
+const FRICTION = 0.82;
+const MAX_SPEED = 8;
+const JUMP_FORCE = -15; 
+const TILE_SIZE = 50;
+
+// --- ETATS DU JEU ---
+let gameState = 'start'; // start, playing, level_complete, gameover, win
+let currentLevel = 1;
+let coins = 0; // "Credits"
 let cameraX = 0;
 let animationFrameId;
+let gameTime = 0; // Pour les animations
 
-// Physique
-const GRAVITY = 0.6;
-const FRICTION = 0.85;
-const MOVE_SPEED = 0.6; 
-const MAX_SPEED = 7;
-const JUMP_FORCE = -14; // Saut un peu plus puissant pour compenser la taille
+// --- DONNEES DES NIVEAUX ---
+// Plus on avance, plus c'est dur (trous plus grands, plateformes plus traîtres)
+const LEVEL_CONFIG = {
+    1: { length: 150, gapProb: 0.1, spikeProb: 0.2, color: '#00ffff' }, // Cyan
+    2: { length: 220, gapProb: 0.2, spikeProb: 0.4, color: '#ff00ff' }, // Magenta
+    3: { length: 300, gapProb: 0.25, spikeProb: 0.5, color: '#ffff00' } // Jaune
+};
 
-// Inputs
-let touchStartX = 0;
-let isTouchingMove = false;
-let moveFingerId = null;
-let inputX = 0; 
-
-// Le Monde
-const TILE_SIZE = 50;
-const LEVEL_LENGTH = 180; // Un peu plus long
+// --- ENTITÉS ---
 let platforms = [];
 let spikes = [];
 let collectibles = [];
-let clouds = [];
-let mountains = [];
-let flag = null;
 let particles = [];
+let stars = []; // Fond étoilé
+let cityBuildings = []; // Skyline
+let flag = null;
 
-// Le Joueur (Plus grand !)
 const player = {
     x: 100,
     y: 100,
-    w: 45, // Plus large (avant 30)
-    h: 75, // Plus haut (avant 50)
+    w: 40,
+    h: 70,
     vx: 0,
     vy: 0,
     grounded: false,
     facingRight: true,
-    animTimer: 0
+    state: 'idle'
 };
 
-// --- Initialisation ---
+// Inputs
+let inputX = 0;
+let touchStartX = 0;
+let moveFingerId = null;
+
+// --- INITIALISATION & GRAPHISMES ---
 
 function resize() {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
-    // Si on redimensionne, on régénère le décor de fond pour qu'il s'adapte
-    if(mountains.length === 0) initBackgrounds();
+    generateBackgroundElements();
 }
 window.addEventListener('resize', resize);
-resize();
 
-function initBackgrounds() {
-    clouds = [];
-    mountains = [];
-    
-    // Générer des nuages
-    for(let i=0; i<20; i++) {
-        clouds.push({
-            x: Math.random() * (LEVEL_LENGTH * TILE_SIZE),
-            y: Math.random() * (height / 2),
-            w: 60 + Math.random() * 80,
-            speed: 0.2 + Math.random() * 0.3
+function generateBackgroundElements() {
+    // 1. Étoiles (statique très loin)
+    stars = [];
+    for(let i=0; i<100; i++) {
+        stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height * 0.6,
+            size: Math.random() * 2,
+            alpha: Math.random()
         });
     }
 
-    // Générer des montagnes (décor de fond)
-    let mX = 0;
-    while(mX < LEVEL_LENGTH * TILE_SIZE) {
-        let mW = 300 + Math.random() * 500;
-        let mH = 200 + Math.random() * 300;
-        mountains.push({
-            x: mX,
-            y: height, // Base de la montagne en bas de l'écran
-            w: mW,
-            h: mH,
-            color: Math.random() > 0.5 ? '#5D6D7E' : '#34495E' // Gris bleuté
-        });
-        mX += mW - 100; // Chevauchement
+    // 2. Skyline Ville (Moyen plan)
+    // On génère un motif répété
+    cityBuildings = [];
+    let x = 0;
+    while(x < width * 2) { // Assez large pour le looping
+        let w = 40 + Math.random() * 80;
+        let h = 100 + Math.random() * 300;
+        cityBuildings.push({x: x, w: w, h: h});
+        x += w + 5; // petit espace
     }
 }
 
-function initLevel() {
+function initLevel(levelNum) {
     platforms = [];
     spikes = [];
     collectibles = [];
     particles = [];
-    initBackgrounds(); // Reset backgrounds
+    cameraX = 0;
     
-    // Sol de départ safe
-    for(let i=0; i<15; i++) {
-        platforms.push({x: i*TILE_SIZE, y: height - TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE});
-    }
-
-    // Génération procédurale du niveau
-    let currentX = 15 * TILE_SIZE;
-    let currentY = height - TILE_SIZE;
-
-    for(let i=15; i < LEVEL_LENGTH; i++) {
-        let rand = Math.random();
-        
-        if (rand < 0.15) {
-            // Trou
-            currentX += TILE_SIZE * 1.5; // Trou un peu plus large parfois
-        } else if (rand < 0.35) {
-            // Changement de hauteur
-            let heightChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE;
-            currentY += heightChange;
-            // Limites bas/haut
-            if(currentY > height - TILE_SIZE) currentY = height - TILE_SIZE;
-            if(currentY < height - 300) currentY = height - 300;
-            
-            platforms.push({x: currentX, y: currentY, w: TILE_SIZE, h: TILE_SIZE});
-            
-            // Pic ?
-            if(Math.random() < 0.3) {
-                spikes.push({x: currentX + 10, y: currentY - 20, w: 30, h: 20});
-            }
-             currentX += TILE_SIZE;
-        } else {
-            // Sol normal
-            platforms.push({x: currentX, y: currentY, w: TILE_SIZE, h: TILE_SIZE});
-            
-            // Pièce ?
-            if(Math.random() < 0.25) {
-                // Pièce placée un peu plus bas pour être attrapable debout
-                collectibles.push({
-                    x: currentX + TILE_SIZE/2, 
-                    y: currentY - 50, // Plus proche du sol
-                    r: 12, // Pièce plus grosse
-                    active: true,
-                    floatOffset: Math.random() * Math.PI
-                });
-            }
-            currentX += TILE_SIZE;
-        }
-    }
-
-    // Arrivée
-    flag = { x: currentX, y: currentY - 120 };
-    platforms.push({x: currentX, y: currentY, w: TILE_SIZE*5, h: TILE_SIZE});
-}
-
-function showStartScreen() {
-    const box = document.getElementById('message-box');
-    document.getElementById('msg-title').innerText = "Super Bibou Run";
-    document.getElementById('msg-title').style.color = "#3498db";
-    document.getElementById('msg-text').innerHTML = "Bibou doit rejoindre le drapeau !<br>Évite les pics rouges.<br><br><i>Tourne ton écran en paysage !</i>";
-    box.style.display = 'block';
-}
-
-function startGame() {
-    gameState = 'playing';
     player.x = 100;
     player.y = 100;
     player.vx = 0;
     player.vy = 0;
-    cameraX = 0;
-    lives = 3;
-    coins = 0;
-    document.getElementById('message-box').style.display = 'none';
-    initLevel();
-    updateUI();
-    if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    loop();
+
+    const config = LEVEL_CONFIG[levelNum];
+    const mainColor = config.color;
+
+    // Mise à jour HUD
+    document.getElementById('level-indicator').innerText = `NIVEAU ${levelNum}`;
+    document.getElementById('level-indicator').style.color = mainColor;
+    document.getElementById('level-indicator').style.textShadow = `0 0 10px ${mainColor}`;
+
+    // Génération procédurale
+    let cx = 0;
+    let cy = height - TILE_SIZE * 2;
+
+    // Platforme de départ
+    platforms.push({x: -100, y: cy, w: 500, h: height, type: 'start'});
+    cx += 400;
+
+    for(let i=0; i < config.length; i++) {
+        // Logique de trous (Gaps)
+        if(Math.random() < config.gapProb) {
+            let gapSize = TILE_SIZE * (2 + Math.random() * 2); // Trou variable
+            cx += gapSize;
+        } 
+        
+        // Logique de hauteur
+        if (Math.random() < 0.3) {
+            let hChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE; // -50, 0, +50
+            cy += hChange;
+        }
+        
+        // Clamp hauteur
+        if(cy > height - TILE_SIZE) cy = height - TILE_SIZE;
+        if(cy < height - 400) cy = height - 400;
+
+        let platWidth = TILE_SIZE * (2 + Math.random() * 3);
+        
+        // Création plateforme
+        platforms.push({
+            x: cx, 
+            y: cy, 
+            w: platWidth, 
+            h: height - cy + 200, // On remplit jusqu'en bas pour le style "bloc"
+            type: 'normal'
+        });
+
+        // Ajouter des pièges (Spikes)
+        if(Math.random() < config.spikeProb) {
+            spikes.push({
+                x: cx + platWidth/2 - 15,
+                y: cy - 25,
+                w: 30,
+                h: 25
+            });
+        }
+
+        // Ajouter des Crédits (Coins)
+        if(Math.random() < 0.4) {
+            collectibles.push({
+                x: cx + platWidth/2,
+                y: cy - 60 - (Math.random() * 100), // Parfois haut
+                r: 10,
+                active: true,
+                offset: Math.random() * Math.PI
+            });
+        }
+
+        cx += platWidth;
+    }
+
+    // Fin du niveau
+    cx += 100;
+    platforms.push({x: cx, y: cy, w: 600, h: height, type: 'end'});
+    flag = { x: cx + 300, y: cy - 10 };
 }
 
-// --- Gestion des Contrôles Tactiles ---
-// Zone gauche de l'écran = Mouvement
-// Zone droite de l'écran (ou tap n'importe où ailleurs) = Saut
+// --- LOGIQUE GLOBALE ---
+
+function nextAction() {
+    const box = document.getElementById('message-box');
+    
+    if(gameState === 'start' || gameState === 'gameover' || gameState === 'win') {
+        currentLevel = 1;
+        coins = 0;
+        document.getElementById('score-board').innerText = "CREDITS: 0";
+        gameState = 'playing';
+        initLevel(currentLevel);
+    } 
+    else if (gameState === 'level_complete') {
+        currentLevel++;
+        if(currentLevel > 3) {
+            // Victoire totale
+            winGame();
+            return;
+        }
+        gameState = 'playing';
+        initLevel(currentLevel);
+    }
+    
+    box.style.display = 'none';
+    if(!animationFrameId) loop();
+}
+
+function gameOver() {
+    gameState = 'gameover';
+    showModal("ÉCHEC CRITIQUE", "Bibou a crashé le système.<br>Mathieu t'attend pour recommencer.", "#ff0000", "REBOOT");
+}
+
+function levelComplete() {
+    gameState = 'level_complete';
+    showModal("NIVEAU PIRATÉ", `Séquence ${currentLevel} terminée.<br>Crédits accumulés : ${coins}`, "#00ff00", "NIVEAU SUIVANT");
+}
+
+function winGame() {
+    gameState = 'win';
+    showModal("MISSION ACCOMPLIE", `Félicitations Tintin !<br>Tu as dominé la Cyber-City avec ${coins} crédits.<br>Mélanie est fière de toi !`, "#ffff00", "NOUVELLE PARTIE");
+}
+
+function showModal(title, text, color, btnText) {
+    const box = document.getElementById('message-box');
+    const t = document.getElementById('msg-title');
+    const txt = document.getElementById('msg-text');
+    const btn = document.getElementById('msg-btn');
+    
+    t.innerText = title;
+    t.style.color = color;
+    t.style.textShadow = `0 0 15px ${color}`;
+    
+    txt.innerHTML = text;
+    btn.innerText = btnText;
+    btn.style.borderColor = color;
+    btn.style.color = color;
+    btn.style.boxShadow = `0 0 10px ${color}`;
+    
+    box.style.display = 'block';
+}
+
+// --- CONTROLES (Multi-touch) ---
 
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
+    for(let i=0; i<e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
-        
-        // Si le touch est dans la moitié gauche de l'écran, c'est pour bouger
-        if (t.clientX < window.innerWidth / 2) {
-            if (!isTouchingMove) {
-                isTouchingMove = true;
+        if(t.clientX < width/2) {
+            // Gauche: Mouvement
+            if(moveFingerId === null) {
                 moveFingerId = t.identifier;
                 touchStartX = t.clientX;
             }
         } else {
-            // Sinon (moitié droite), c'est un saut
-            if (player.grounded) {
+            // Droite: Saut
+            if(player.grounded) {
                 player.vy = JUMP_FORCE;
                 player.grounded = false;
-                createParticles(player.x + player.w/2, player.y + player.h, 5, '#fff');
+                createParticles(player.x + player.w/2, player.y + player.h, 10, '#fff');
             }
         }
     }
@@ -346,35 +410,30 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
+    for(let i=0; i<e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
-        if (t.identifier === moveFingerId) {
+        if(t.identifier === moveFingerId) {
             let delta = t.clientX - touchStartX;
-            if (delta > 10) inputX = 1;
-            else if (delta < -10) inputX = -1;
+            if(delta > 15) inputX = 1;
+            else if(delta < -15) inputX = -1;
             else inputX = 0;
             
-            // Reset l'origine si on va trop loin, pour le confort
-            if (Math.abs(delta) > 60) {
-               touchStartX = t.clientX - (60 * Math.sign(delta));
-            }
+            if(Math.abs(delta) > 50) touchStartX = t.clientX - (50 * Math.sign(delta));
         }
     }
 }, {passive: false});
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        let t = e.changedTouches[i];
-        if (t.identifier === moveFingerId) {
-            isTouchingMove = false;
+    for(let i=0; i<e.changedTouches.length; i++) {
+        if(e.changedTouches[i].identifier === moveFingerId) {
             moveFingerId = null;
             inputX = 0;
         }
     }
 });
 
-// Clavier PC (pour débugger)
+// Clavier PC
 window.addEventListener('keydown', (e) => {
     if(e.code === 'ArrowRight') inputX = 1;
     if(e.code === 'ArrowLeft') inputX = -1;
@@ -383,28 +442,25 @@ window.addEventListener('keydown', (e) => {
         player.grounded = false;
     }
 });
-window.addEventListener('keyup', (e) => {
-    if(e.code === 'ArrowRight' || e.code === 'ArrowLeft') inputX = 0;
-});
+window.addEventListener('keyup', (e) => inputX = 0);
 
-// --- Moteur de Jeu ---
+// --- UPDATE ---
 
 function update() {
-    if (gameState !== 'playing') return;
+    if(gameState !== 'playing') return;
+    gameTime += 0.05;
 
-    // Physique Joueur
-    if (inputX !== 0) {
-        player.vx += inputX * MOVE_SPEED;
+    // Physique
+    if(inputX !== 0) {
+        player.vx += inputX * 0.8; // Accel
         player.facingRight = inputX > 0;
-        player.animTimer += 0.2;
     } else {
         player.vx *= FRICTION;
-        player.animTimer = 0;
     }
-
-    // Clamp vitesse
-    if (player.vx > MAX_SPEED) player.vx = MAX_SPEED;
-    if (player.vx < -MAX_SPEED) player.vx = -MAX_SPEED;
+    
+    // Clamp Vitesse
+    if(player.vx > MAX_SPEED) player.vx = MAX_SPEED;
+    if(player.vx < -MAX_SPEED) player.vx = -MAX_SPEED;
 
     player.vy += GRAVITY;
     player.x += player.vx;
@@ -412,382 +468,328 @@ function update() {
 
     // Collisions Plateformes
     player.grounded = false;
-    for (let p of platforms) {
-        // Optimisation collision : ne vérifier que les plateformes proches
-        if (p.x > player.x - 100 && p.x < player.x + 100) {
-            if (checkRectCollide(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) {
-                // Bas
-                if (player.vy > 0 && player.y + player.h - player.vy <= p.y + 10) { // +10 tolérance
-                    player.y = p.y - player.h;
-                    player.vy = 0;
-                    player.grounded = true;
-                }
-                // Haut
-                else if (player.vy < 0 && player.y - player.vy >= p.y + p.h) {
-                    player.y = p.y + p.h;
-                    player.vy = 0;
-                }
-                // Cotés
-                else if (player.vx > 0 && player.x + player.w - player.vx <= p.x) {
-                    player.x = p.x - player.w;
-                    player.vx = 0;
-                }
-                else if (player.vx < 0 && player.x - player.vx >= p.x + p.w) {
-                    player.x = p.x + p.w;
-                    player.vx = 0;
-                }
+    for(let p of platforms) {
+        // Check simple AABB
+        if(player.x < p.x + p.w && player.x + player.w > p.x &&
+           player.y < p.y + p.h && player.y + player.h > p.y) {
+            
+            // On vérifie la collision précédente pour savoir d'où on vient
+            let prevY = player.y - player.vy;
+            
+            // Si on était au dessus, on atterrit
+            if(prevY + player.h <= p.y + 15 && player.vy >= 0) {
+                player.y = p.y - player.h;
+                player.vy = 0;
+                player.grounded = true;
+            }
+            // Sinon c'est un mur
+            else if (player.x + player.w/2 < p.x + p.w/2) {
+                 player.x = p.x - player.w;
+                 player.vx = 0;
+            } else {
+                player.x = p.x + p.w;
+                player.vx = 0;
             }
         }
-    }
-
-    // Collisions Pics
-    for (let s of spikes) {
-        if (s.x > player.x - 100 && s.x < player.x + 100) {
-            // Hitbox un peu plus petite pour le joueur vs pics (plus gentil)
-            if (checkRectCollide(player.x + 5, player.y + 5, player.w - 10, player.h - 10, s.x, s.y, s.w, s.h)) {
-                hurtPlayer();
-            }
-        }
-    }
-
-    // Collisions Pièces
-    for (let c of collectibles) {
-        if (c.active && c.x > player.x - 100 && c.x < player.x + 100) {
-            if(checkRectCollide(player.x, player.y, player.w, player.h, c.x - c.r, c.y - c.r, c.r*2, c.r*2)) {
-                c.active = false;
-                coins++;
-                updateUI();
-                createParticles(c.x, c.y, 8, '#f1c40f');
-            }
-            c.floatOffset += 0.1;
-        }
-    }
-
-    // Nuages (Défilement continu)
-    for(let c of clouds) {
-        c.x -= c.speed;
-        // Si le nuage sort à gauche (loin), on le remet loin à droite
-        // On calcule par rapport à la caméra pour le recyclage
-        if(c.x + c.w < cameraX - width) {
-            c.x = cameraX + width + Math.random() * 500;
-            c.y = Math.random() * (height / 2);
-        }
-    }
-
-    // Victoire
-    if (player.x > flag.x) {
-        endGame(true);
     }
 
     // Mort chute
-    if (player.y > height + 200) {
-        hurtPlayer();
+    if(player.y > height + 100) gameOver();
+
+    // Pièges
+    for(let s of spikes) {
+        // Hitbox plus gentille
+        if(player.x + 10 < s.x + s.w && player.x + player.w - 10 > s.x &&
+           player.y + 10 < s.y + s.h && player.y + player.h > s.y) {
+            gameOver();
+        }
     }
 
-    // Caméra (Lerp pour fluidité)
-    let targetCamX = player.x - width * 0.3;
-    if (targetCamX < 0) targetCamX = 0;
-    cameraX += (targetCamX - cameraX) * 0.1;
+    // Collectibles
+    for(let c of collectibles) {
+        if(c.active) {
+            let dx = (player.x + player.w/2) - c.x;
+            let dy = (player.y + player.h/2) - (c.y + Math.sin(gameTime + c.offset)*5);
+            if(Math.sqrt(dx*dx + dy*dy) < player.w/2 + c.r) {
+                c.active = false;
+                coins++;
+                document.getElementById('score-board').innerText = `CREDITS: ${coins}`;
+                createParticles(c.x, c.y, 10, LEVEL_CONFIG[currentLevel].color);
+            }
+        }
+    }
+
+    // Drapeau
+    if(Math.abs(player.x - flag.x) < 50 && Math.abs(player.y - flag.y) < 100) {
+        levelComplete();
+    }
+
+    // Caméra (Suivi fluide)
+    let targetCam = player.x - width * 0.3;
+    if(targetCam < 0) targetCam = 0;
+    cameraX += (targetCam - cameraX) * 0.1;
 
     // Particules
-    for (let i = particles.length - 1; i >= 0; i--) {
+    for(let i=particles.length-1; i>=0; i--) {
         let p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
         p.life--;
-        if(p.life <= 0) particles.splice(i, 1);
+        p.alpha -= 0.03;
+        if(p.life <= 0) particles.splice(i,1);
     }
 }
 
-function hurtPlayer() {
-    lives--;
-    updateUI();
-    createParticles(player.x + player.w/2, player.y + player.h/2, 30, '#e74c3c');
-    
-    if (lives <= 0) {
-        endGame(false);
-    } else {
-        // Respawn
-        player.y = 0; 
-        player.x -= 250;
-        if(player.x < 100) player.x = 100;
-        player.vx = 0;
-        player.vy = 0;
-    }
-}
-
-function endGame(win) {
-    gameState = win ? 'win' : 'gameover';
-    const box = document.getElementById('message-box');
-    const title = document.getElementById('msg-title');
-    const txt = document.getElementById('msg-text');
-    
-    box.style.display = 'block';
-    if (win) {
-        title.innerText = "VICTOIRE !";
-        title.style.color = "#2ecc71";
-        txt.innerHTML = `Bravo Tintin !<br>Tu as raflé ${coins} pièces !<br>Prêt pour l'apéro ?`;
-    } else {
-        title.innerText = "Aïe !";
-        title.style.color = "#e74c3c";
-        txt.innerHTML = "Pas grave, même le LHC<br>a des jours sans.<br>Réessaie !";
-    }
-}
-
-function createParticles(x, y, count, color) {
-    for(let i=0; i<count; i++) {
-        particles.push({
-            x: x, y: y,
-            vx: (Math.random() - 0.5) * 12,
-            vy: (Math.random() - 0.5) * 12,
-            life: 20 + Math.random() * 20,
-            color: color
-        });
-    }
-}
-
-function updateUI() {
-    document.getElementById('score-board').innerHTML = `Pièces: ${coins} | Vies: ${lives}`;
-}
-
-// --- Rendu ---
+// --- RENDU (DRAW) ---
 
 function draw() {
-    // Ciel
-    ctx.fillStyle = '#87CEEB';
+    // Fond
+    let lvlColor = LEVEL_CONFIG[currentLevel].color;
+    
+    // Dégradé Ciel
+    let grad = ctx.createLinearGradient(0, 0, 0, height);
+    grad.addColorStop(0, '#050510');
+    grad.addColorStop(1, '#1a1a2e');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
+
+    // --- ARRIÈRE PLAN (PARALLAX FIXÉ) ---
+    // Le secret : On ne bouge pas les objets, on bouge le point de départ du dessin
+    // avec un modulo (%) pour que ça boucle à l'infini.
+
+    // 1. Étoiles (Vitesse très lente)
+    ctx.fillStyle = '#fff';
+    for(let s of stars) {
+        // Calcul position écran avec parallax
+        let sx = (s.x - cameraX * 0.05) % width;
+        if(sx < 0) sx += width;
+        ctx.globalAlpha = s.alpha;
+        ctx.fillRect(sx, s.y, s.size, s.size);
+    }
+    ctx.globalAlpha = 1;
+
+    // 2. Ville (Vitesse moyenne)
+    ctx.fillStyle = '#16213e'; // Bleu nuit
+    ctx.shadowBlur = 0;
+    let cityParallax = cameraX * 0.2;
+    // On dessine la "tranche" de ville visible 2 fois pour assurer la continuité
+    // C'est une simplification efficace pour canvas
+    let cityOffset = -(cityParallax % width);
+    drawCityLayer(cityOffset);
+    drawCityLayer(cityOffset + width); // La copie qui suit
 
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // 1. DESSIN ARRIÈRE PLAN (Parallax)
-    
-    // Soleil
-    ctx.fillStyle = '#F1C40F';
-    ctx.beginPath();
-    ctx.arc(cameraX + width - 150, 120, 60, 0, Math.PI*2);
-    ctx.fill();
+    // --- PREMIER PLAN (JEU) ---
 
-    // Nuages (bougent doucement)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    for(let c of clouds) {
-        // On ne dessine que si visible (+marge)
-        if(c.x + c.w > cameraX && c.x < cameraX + width) {
-            drawCloud(c.x, c.y, c.w);
-        }
-    }
+    // Plateformes (Style TRON)
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = lvlColor;
+    ctx.strokeStyle = lvlColor;
+    ctx.lineWidth = 3;
+    ctx.fillStyle = '#000';
 
-    // Montagnes (Parallax: on divise cameraX par 2 pour qu'elles bougent moins vite)
-    ctx.save();
-    // On annule le translate normal, et on en applique un plus lent
-    ctx.translate(cameraX, 0); 
-    ctx.translate(-cameraX * 0.2, 0); // Vitesse 20%
-    
-    for(let m of mountains) {
-        // On doit vérifier la visibilité en tenant compte du parallax... un peu compliquer, 
-        // on dessine tout ce qui est proche c'est plus simple pour ce code.
-        let parallaxX = m.x; 
-        // Check simple de visibilité relative
-        if(parallaxX + m.w > cameraX * 0.8 - 500 && parallaxX < cameraX * 0.8 + width + 500) {
-            ctx.fillStyle = m.color;
-            ctx.beginPath();
-            ctx.moveTo(m.x, m.y);
-            ctx.lineTo(m.x + m.w/2, m.y - m.h);
-            ctx.lineTo(m.x + m.w, m.y);
-            ctx.fill();
-            
-            // Sommet enneigé
-            ctx.fillStyle = 'white';
-            ctx.beginPath();
-            ctx.moveTo(m.x + m.w/2, m.y - m.h);
-            ctx.lineTo(m.x + m.w/2 - 40, m.y - m.h + 80);
-            ctx.lineTo(m.x + m.w/2 + 40, m.y - m.h + 80);
-            ctx.fill();
-            ctx.fillStyle = m.color;
-        }
-    }
-    ctx.restore();
-
-    // 2. DESSIN PREMIER PLAN (Jeu)
-
-    // Plateformes
-    ctx.fillStyle = '#27ae60'; 
-    ctx.strokeStyle = '#2c3e50';
-    ctx.lineWidth = 2;
-    for (let p of platforms) {
+    for(let p of platforms) {
         if(p.x + p.w > cameraX && p.x < cameraX + width) {
-            // Bloc terre
-            ctx.fillStyle = '#5D4037'; // Marron terre
             ctx.fillRect(p.x, p.y, p.w, p.h);
-            
-            // Herbe dessus
-            ctx.fillStyle = '#2ecc71';
-            ctx.fillRect(p.x, p.y, p.w, 15);
-            
-            // Contour
             ctx.strokeRect(p.x, p.y, p.w, p.h);
+            
+            // Grille sur les plateformes
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 0;
+            for(let gx=p.x; gx<p.x+p.w; gx+=20) {
+                ctx.moveTo(gx, p.y);
+                ctx.lineTo(gx, p.y + p.h);
+            }
+            for(let gy=p.y; gy<p.y+p.h; gy+=20) {
+                ctx.moveTo(p.x, gy);
+                ctx.lineTo(p.x+p.w, gy);
+            }
+            ctx.stroke();
+            ctx.restore();
         }
     }
 
-    // Pics
-    ctx.fillStyle = '#c0392b';
-    for (let s of spikes) {
+    // Pics (Laser)
+    ctx.fillStyle = '#ff0055'; // Rouge laser
+    ctx.shadowColor = '#ff0055';
+    ctx.shadowBlur = 15;
+    for(let s of spikes) {
         if(s.x + s.w > cameraX && s.x < cameraX + width) {
             ctx.beginPath();
             ctx.moveTo(s.x, s.y + s.h);
             ctx.lineTo(s.x + s.w/2, s.y);
             ctx.lineTo(s.x + s.w, s.y + s.h);
             ctx.fill();
-            ctx.stroke();
         }
     }
 
-    // Pièces
-    for (let c of collectibles) {
+    // Collectibles (Energy Cells)
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ffd700'; // Or
+    for(let c of collectibles) {
         if(c.active && c.x + c.r > cameraX && c.x - c.r < cameraX + width) {
-            let floatY = Math.sin(c.floatOffset) * 5;
-            // Extérieur or
-            ctx.fillStyle = '#f1c40f';
-            ctx.beginPath();
-            ctx.arc(c.x, c.y + floatY, c.r, 0, Math.PI*2);
-            ctx.fill();
-            ctx.stroke();
-            // Intérieur brillant
-            ctx.fillStyle = '#f39c12';
-            ctx.beginPath();
-            ctx.arc(c.x, c.y + floatY, c.r * 0.6, 0, Math.PI*2);
-            ctx.fill();
-            // Reflet blanc
-            ctx.fillStyle = 'white';
-            ctx.beginPath();
-            ctx.arc(c.x - c.r*0.3, c.y + floatY - c.r*0.3, 3, 0, Math.PI*2);
-            ctx.fill();
+            let floatY = Math.sin(gameTime + c.offset) * 8;
+            
+            // Forme Hexagonale
+            drawHexagon(c.x, c.y + floatY, c.r, '#ffd700');
         }
     }
 
-    // Drapeau
-    ctx.fillStyle = '#95a5a6'; // Mat gris
-    ctx.fillRect(flag.x, flag.y, 8, 120);
-    // Drapeau Rouge LHC
-    ctx.fillStyle = '#e74c3c'; 
+    // Drapeau (Holo-Flag)
+    ctx.shadowColor = lvlColor;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(flag.x, flag.y, 4, 100); // Mat
+    
+    // Le drapeau est un hologramme mouvant
+    ctx.fillStyle = `rgba(${lvlColor === '#00ffff' ? '0,255,255' : '255,0,255'}, 0.5)`;
     ctx.beginPath();
-    ctx.moveTo(flag.x + 8, flag.y + 10);
-    ctx.lineTo(flag.x + 80, flag.y + 35);
-    ctx.lineTo(flag.x + 8, flag.y + 60);
-    ctx.fill();
-    // Lion blanc (abstrait)
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(flag.x + 30, flag.y + 35, 10, 0, Math.PI*2);
+    ctx.moveTo(flag.x + 4, flag.y + 10);
+    ctx.lineTo(flag.x + 80, flag.y + 30 + Math.sin(gameTime)*5);
+    ctx.lineTo(flag.x + 4, flag.y + 60);
     ctx.fill();
 
 
     // Particules
-    for (let p of particles) {
+    for(let p of particles) {
+        ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, 5, 5);
+        ctx.fillRect(p.x, p.y, 4, 4);
     }
+    ctx.globalAlpha = 1;
 
-    // --- Dessin du Joueur (Super Bibou v2) ---
-    drawPlayer();
+    // --- CYBER BIBOU ---
+    drawCyberBibou();
 
     ctx.restore();
 }
 
-function drawCloud(x, y, w) {
+function drawCityLayer(offsetX) {
+    ctx.fillStyle = '#1a1a2e'; // Silhouette
+    for(let b of cityBuildings) {
+        // On dessine le bâtiment avec le décalage calculé
+        let drawX = b.x + offsetX;
+        if(drawX > -100 && drawX < width) { // Optimisation
+            ctx.fillRect(drawX, height - b.h, b.w, b.h);
+            
+            // Fenêtres aléatoires allumées
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; // Cyan light
+            if(b.w > 20) { // Si assez large
+                for(let wy = height - b.h + 10; wy < height; wy += 40) {
+                    if((b.x + wy) % 7 === 0) // Pseudo random basé sur position
+                        ctx.fillRect(drawX + 10, wy, b.w - 20, 5);
+                }
+            }
+            ctx.fillStyle = '#1a1a2e'; // Reset couleur batiment
+        }
+    }
+}
+
+function drawHexagon(x, y, r, color) {
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(x, y, 30, 0, Math.PI * 2);
-    ctx.arc(x + 25, y - 20, 35, 0, Math.PI * 2);
-    ctx.arc(x + 55, y, 30, 0, Math.PI * 2);
+    for (let i = 0; i < 6; i++) {
+        ctx.lineTo(x + r * Math.cos(i * 2 * Math.PI / 6), y + r * Math.sin(i * 2 * Math.PI / 6));
+    }
+    ctx.closePath();
     ctx.fill();
 }
 
-function drawPlayer() {
+function drawCyberBibou() {
     let px = player.x;
     let py = player.y;
     let pw = player.w;
     let ph = player.h;
 
-    // Calcul animation marche
-    let legOffset = 0;
-    let armOffset = 0;
-    if (Math.abs(player.vx) > 0.1 && !player.grounded) {
-        legOffset = Math.PI / 3; // Jambes écartées saut
-    } else if (Math.abs(player.vx) > 0.1) {
-        legOffset = Math.sin(player.animTimer) * 0.8;
-        armOffset = Math.cos(player.animTimer) * 0.8;
-    }
+    // Animation
+    let legCycle = 0;
+    if(Math.abs(player.vx) > 0.5 && !player.grounded) legCycle = 0.5; // Saut
+    else if(Math.abs(player.vx) > 0.5) legCycle = Math.sin(gameTime * 2);
 
     ctx.save();
     ctx.translate(px + pw/2, py + ph/2);
     if (!player.facingRight) ctx.scale(-1, 1);
 
-    // Corps (Plus costaud)
-    ctx.fillStyle = '#e74c3c'; // Chandail Rouge LHC
-    ctx.fillRect(-15, -20, 30, 45);
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#e74c3c'; // Glow Rouge LHC
+
+    // Corps (Armure High-Tech)
+    ctx.fillStyle = '#e74c3c'; // Rouge
+    ctx.fillRect(-15, -20, 30, 40);
     
-    // Logo sur le torse (LHC style)
-    ctx.fillStyle = 'white';
+    // Plastron Blanc (Logo LHC stylisé)
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(0, -5, 8, 0, Math.PI*2);
+    ctx.moveTo(-10, -20);
+    ctx.lineTo(10, -20);
+    ctx.lineTo(0, 5);
     ctx.fill();
 
-    // Tête
-    ctx.fillStyle = '#f1c40f'; // Peau
+    // Tête (Casque intégral)
+    ctx.fillStyle = '#2c3e50'; // Sombre
     ctx.beginPath();
-    ctx.arc(0, -30, 18, 0, Math.PI*2); // Tête plus grosse
+    ctx.arc(0, -30, 16, 0, Math.PI*2);
     ctx.fill();
-    
-    // Casquette
-    ctx.fillStyle = '#2c3e50'; // Casquette bleue foncée
-    ctx.fillRect(-18, -42, 36, 10);
-    ctx.fillRect(0, -42, 28, 10); // Visière
 
-    // Yeux
-    ctx.fillStyle = 'black';
-    ctx.fillRect(6, -34, 4, 4);
+    // Visière (Néon)
+    ctx.fillStyle = '#0ff'; // Cyan
+    ctx.fillRect(5, -34, 10, 6); // Oeil visière
 
-    // Jambes (Plus longues)
-    ctx.strokeStyle = '#2c3e50'; // Pantalon noir
-    ctx.lineWidth = 8; // Jambes plus épaisses
+    // Jetpack / Sac à dos
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-22, -25, 8, 30);
+    // Flamme réacteur si mouvement
+    if(Math.abs(player.vx) > 1) {
+        ctx.fillStyle = '#0ff';
+        ctx.beginPath();
+        ctx.moveTo(-18, 5);
+        ctx.lineTo(-22, 15);
+        ctx.lineTo(-14, 15);
+        ctx.fill();
+    }
+
+    // Jambes Robotiques
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     
+    // Jambe Arrière
     ctx.beginPath();
-    ctx.moveTo(-8, 20);
-    ctx.lineTo(-8 - Math.sin(legOffset)*15, 38);
+    ctx.moveTo(-5, 20);
+    ctx.lineTo(-5 - Math.sin(legCycle)*15, 35);
     ctx.stroke();
-    
+
+    // Jambe Avant
     ctx.beginPath();
-    ctx.moveTo(8, 20);
-    ctx.lineTo(8 + Math.sin(legOffset)*15, 38);
+    ctx.moveTo(10, 20);
+    ctx.lineTo(10 + Math.sin(legCycle)*15, 35);
     ctx.stroke();
 
     // Bras
-    ctx.strokeStyle = '#e74c3c'; // Manches rouges
+    ctx.strokeStyle = '#e74c3c';
     ctx.beginPath();
     ctx.moveTo(0, -10);
-    ctx.lineTo(Math.sin(armOffset)*15, 10);
+    ctx.lineTo(15, 5 + Math.cos(legCycle)*10);
     ctx.stroke();
-
-    // Cape (Bibou Style)
-    ctx.fillStyle = 'white';
-    ctx.fillRect(-12, -18, 20, 5); // Noeud
-    // La cape qui vole
-    if (Math.abs(player.vx) > 1) {
-        ctx.fillStyle = 'rgba(236, 240, 241, 0.8)';
-        ctx.beginPath();
-        ctx.moveTo(-10, -15);
-        ctx.lineTo(-40, -5);
-        ctx.lineTo(-40, 25);
-        ctx.lineTo(-10, 15);
-        ctx.fill();
-    }
 
     ctx.restore();
 }
 
-function checkRectCollide(x1, y1, w1, h1, x2, y2, w2, h2) {
-    return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+function createParticles(x, y, count, color) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 20 + Math.random() * 10,
+            alpha: 1,
+            color: color
+        });
+    }
 }
 
 function loop() {
@@ -796,8 +798,11 @@ function loop() {
     animationFrameId = requestAnimationFrame(loop);
 }
 
-// Premier démarrage
-showStartScreen();
+// Start
+resize();
+generateBackgroundElements();
+// Affiche le message de départ
+document.getElementById('message-box').style.display = 'block';
 
 </script>
 </body>

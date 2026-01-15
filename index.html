@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0d0d15">
-    <title>Cyber Bibou 2077 v3.1</title>
+    <title>Cyber Bibou 2077 v3.2</title>
     
     <!-- PWA Config -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,7 +27,7 @@
         #lives-display { color: #ff3333; text-shadow: 0 0 10px #ff3333; font-size: 24px; }
         #level-indicator { color: #f0f; text-shadow: 0 0 10px #f0f; }
         #powerup-container { position: absolute; top: 60px; left: 20px; display: flex; flex-direction: column; gap: 5px; }
-        .powerup-tag { color: #fff; font-size: 14px; display: none; }
+        .powerup-tag { color: #fff; font-size: 14px; display: none; font-weight: bold; }
         #message-box {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(13, 13, 21, 0.95); color: white; padding: 40px;
@@ -83,19 +83,20 @@
 
 <script>
 /**
- * CYBER BIBOU 2077 v3.1
- * Correctifs : Vitesse, Loop Bug, Ennemis
+ * CYBER BIBOU 2077 v3.2
+ * Bibou Fun Edition
+ * Fix: Game Loop ID, Powerup Spawn Rate
  */
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let width, height;
 
-// --- CONFIGURATION AJUSTÉE ---
-const GRAVITY_DEFAULT = 0.55; // Un peu plus léger pour mieux contrôler
+// --- CONFIGURATION ---
+const GRAVITY_DEFAULT = 0.55; 
 let currentGravity = GRAVITY_DEFAULT;
-const FRICTION = 0.85; // Un peu moins glissant
-const MAX_SPEED = 5.5; // Vitesse max réduite (était 8)
+const FRICTION = 0.85; 
+const MAX_SPEED = 6; 
 const JUMP_FORCE = -13; 
 const TILE_SIZE = 50;
 
@@ -105,7 +106,11 @@ let currentLevel = 1;
 let coins = 0;
 let lives = 3;
 let cameraX = 0;
-let animationFrameId = null; // Important pour le fix du bug reboot
+
+// SYSTEME DE SESSION (ANTI-BUG REBOOT)
+// Chaque fois qu'on lance le jeu, on change d'ID.
+// La boucle de jeu vérifie si elle est toujours la "bonne".
+let gameSessionId = 0; 
 let gameTime = 0; 
 
 // Powerup state
@@ -122,13 +127,13 @@ const LEVEL_CONFIG = {
     },
     2: { 
         name: "DATA CAVE", 
-        length: 70, gapProb: 0.15, spikeProb: 0.3, 
+        length: 60, gapProb: 0.15, spikeProb: 0.25, 
         color: '#ff00ff', bgStart:'#1a051a', bgEnd:'#2e1a2e',
         hasCeiling: true, gravityMod: 1 
     },
     3: { 
         name: "LUNE CYBER", 
-        length: 90, gapProb: 0.3, spikeProb: 0.4, 
+        length: 80, gapProb: 0.3, spikeProb: 0.3, 
         color: '#ffff00', bgStart:'#1a1a05', bgEnd:'#2e2e1a',
         hasCeiling: false, gravityMod: 0.5 
     }
@@ -197,10 +202,9 @@ function initLevel(levelNum) {
     enemies = [];
     particles = [];
     trail = [];
-    cameraX = 0;
+    cameraX = 0; // Reset caméra CRUCIAL
     
-    // Reset Player position
-    respawnPlayer(false);
+    respawnPlayer(true); // Force reset position
     
     // Reset Powerups
     magnetTimer = 0;
@@ -225,16 +229,19 @@ function initLevel(levelNum) {
     cx += 400;
 
     for(let i=0; i < config.length; i++) {
+        // Trous
         if(Math.random() < config.gapProb) {
             let gapSize = TILE_SIZE * (2 + Math.random() * (config.gravityMod < 1 ? 5 : 2));
             cx += gapSize;
         } 
         
+        // Hauteur
         if (Math.random() < 0.4) {
             let hChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE; 
             cy += hChange;
         }
         
+        // Limites
         if(cy > height - TILE_SIZE * 2) cy = height - TILE_SIZE * 2;
         if(cy < height * 0.4) cy = height * 0.4;
 
@@ -245,34 +252,43 @@ function initLevel(levelNum) {
             type: 'normal'
         });
 
+        // Plafond (Plus haut pour niveau 2)
         if(config.hasCeiling) {
             platforms.push({
-                x: cx, y: 0, w: platWidth, h: cy - 150 - (Math.random()*50),
+                x: cx, y: 0, w: platWidth, h: cy - 200 - (Math.random()*50), // + Haut (200 au lieu de 150)
                 type: 'ceiling'
             });
         }
 
-        // Ennemis (Plus lents)
-        if(i > 2 && Math.random() < 0.25) { 
+        // --- OBJETS ---
+
+        let hasSomething = false;
+
+        // Ennemis
+        if(i > 2 && Math.random() < 0.2) { 
             enemies.push({
                 x: cx + 20,
                 y: cy - 30,
                 w: 30, h: 30,
                 xStart: cx,
                 xEnd: cx + platWidth,
-                speed: 1 + Math.random() * 1.5, // RALENTI ICI (était 2 + ...)
+                speed: 1.5 + Math.random(), 
                 dir: 1,
                 color: '#ff3333'
             });
+            hasSomething = true;
         }
+        // Pics
         else if(Math.random() < config.spikeProb) {
             spikes.push({
                 x: cx + platWidth/2 - 15,
                 y: cy - 20, w: 30, h: 20
             });
+            hasSomething = true;
         }
 
-        if(Math.random() < 0.5) {
+        // Collectibles
+        if(Math.random() < 0.6) {
             collectibles.push({
                 x: cx + platWidth/2,
                 y: cy - 50 - (Math.random() * 80), 
@@ -282,11 +298,13 @@ function initLevel(levelNum) {
             });
         }
 
-        if(Math.random() < 0.03) { 
+        // Power-ups (Beaucoup plus fréquents : 10% de chance + garantie pas sur un pic)
+        // On n'en met pas s'il y a déjà un pic ou un ennemi au même endroit
+        if(!hasSomething && Math.random() < 0.10) { 
             let type = Math.random() > 0.5 ? 'shield' : 'magnet';
             powerups.push({
                 x: cx + platWidth/2,
-                y: cy - 80,
+                y: cy - 60,
                 type: type, active: true,
                 offset: Math.random() * Math.PI
             });
@@ -314,18 +332,16 @@ function respawnPlayer(fullReset) {
     }, 2000);
 }
 
-// --- LOGIQUE GLOBALE (FIX BUG REBOOT) ---
+// --- LOGIQUE GLOBALE (FIX BUG REBOOT VIA SESSION ID) ---
 
 function nextAction() {
-    // 1. ARRÊTER la boucle existante pour éviter les doublons (vitesse x2)
-    if(animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-
     const box = document.getElementById('message-box');
     
-    // 2. Gestion des états
+    // On incrémente l'ID de session. 
+    // Si une ancienne boucle tourne, elle verra que son ID est périmé et s'arrêtera.
+    gameSessionId++; 
+    const currentSession = gameSessionId;
+
     if(gameState === 'start' || gameState === 'gameover' || gameState === 'win') {
         currentLevel = 1;
         coins = 0;
@@ -344,9 +360,10 @@ function nextAction() {
         initLevel(currentLevel);
     }
     
-    // 3. Cacher la boite et lancer une SEULE boucle propre
     box.style.display = 'none';
-    loop();
+    
+    // On lance la boucle avec l'ID de session actuel
+    loop(currentSession);
 }
 
 function takeDamage(sourceX) {
@@ -372,11 +389,8 @@ function takeDamage(sourceX) {
     } else {
         player.invincible = true;
         player.alpha = 0.5;
-        
-        // Knockback (Recul)
         player.vy = -7;
-        player.vx = (player.x < sourceX) ? -8 : 8; // Ejecté un peu moins fort
-        
+        player.vx = (player.x < sourceX) ? -8 : 8; 
         setTimeout(() => {
             player.invincible = false;
             player.alpha = 1;
@@ -397,8 +411,6 @@ function updatePowerupUI() {
 
 function gameOver() {
     gameState = 'gameover';
-    // Note: on ne stop pas la boucle ici pour garder les particules,
-    // mais nextAction le fera avant de redémarrer.
     showModal("ÉCHEC CRITIQUE", "Système corrompu.<br>Plus aucune vie disponible.", "#ff0000", "REBOOT");
 }
 
@@ -435,6 +447,7 @@ function showModal(title, text, color, btnText) {
 
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
+    if(gameState !== 'playing') return; // Bloquer les inputs si pas en jeu
     for(let i=0; i<e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
         if(t.clientX < width/2) {
@@ -457,6 +470,7 @@ canvas.addEventListener('touchstart', (e) => {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
+    if(gameState !== 'playing') return;
     for(let i=0; i<e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
         if(t.identifier === moveFingerId) {
@@ -480,6 +494,7 @@ canvas.addEventListener('touchend', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
+    if(gameState !== 'playing') return;
     if(e.code === 'ArrowRight') inputX = 1;
     if(e.code === 'ArrowLeft') inputX = -1;
     if(e.code === 'Space') {
@@ -505,9 +520,9 @@ function update() {
         if(magnetTimer <= 0) updatePowerupUI();
     }
 
-    // Physique Joueur
+    // Physique
     if(inputX !== 0) {
-        player.vx += inputX * 0.5; // ACCELERATION REDUITE (0.5 au lieu de 0.8)
+        player.vx += inputX * 0.5;
         player.facingRight = inputX > 0;
     } else {
         player.vx *= FRICTION;
@@ -844,10 +859,14 @@ function createParticles(x, y, count, color) {
     }
 }
 
-function loop() {
+// Fonction de boucle critique qui vérifie l'ID de session
+function loop(sessionId) {
+    // Sécurité: si cette boucle appartient à une vieille session, on l'arrête.
+    if(sessionId !== gameSessionId) return;
+
     update();
     draw();
-    animationFrameId = requestAnimationFrame(loop);
+    requestAnimationFrame(() => loop(sessionId));
 }
 
 resize();
@@ -857,4 +876,5 @@ document.getElementById('message-box').style.display = 'block';
 </script>
 </body>
 </html>
+
 

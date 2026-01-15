@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0d0d15">
-    <title>Cyber Bibou 2077 v3 - Bibou Edition</title>
+    <title>Cyber Bibou 2077 v3.1</title>
     
+    <!-- PWA Config -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
@@ -82,20 +83,20 @@
 
 <script>
 /**
- * CYBER BIBOU 2077 v3
- * Bibou Edition - Enhanced Gameplay
+ * CYBER BIBOU 2077 v3.1
+ * Correctifs : Vitesse, Loop Bug, Ennemis
  */
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let width, height;
 
-// --- CONFIGURATION ---
-const GRAVITY_DEFAULT = 0.6;
+// --- CONFIGURATION AJUSTÉE ---
+const GRAVITY_DEFAULT = 0.55; // Un peu plus léger pour mieux contrôler
 let currentGravity = GRAVITY_DEFAULT;
-const FRICTION = 0.82;
-const MAX_SPEED = 8;
-const JUMP_FORCE = -14; 
+const FRICTION = 0.85; // Un peu moins glissant
+const MAX_SPEED = 5.5; // Vitesse max réduite (était 8)
+const JUMP_FORCE = -13; 
 const TILE_SIZE = 50;
 
 // --- ETATS DU JEU ---
@@ -104,7 +105,7 @@ let currentLevel = 1;
 let coins = 0;
 let lives = 3;
 let cameraX = 0;
-let animationFrameId;
+let animationFrameId = null; // Important pour le fix du bug reboot
 let gameTime = 0; 
 
 // Powerup state
@@ -112,7 +113,6 @@ let hasShield = false;
 let magnetTimer = 0;
 
 // --- DONNEES DES NIVEAUX ---
-// length réduit drastiquement (50-80 au lieu de 150-300)
 const LEVEL_CONFIG = {
     1: { 
         name: "SECTEUR ALPHA", 
@@ -130,14 +130,14 @@ const LEVEL_CONFIG = {
         name: "LUNE CYBER", 
         length: 90, gapProb: 0.3, spikeProb: 0.4, 
         color: '#ffff00', bgStart:'#1a1a05', bgEnd:'#2e2e1a',
-        hasCeiling: false, gravityMod: 0.5 // Mode "Espace/Vol"
+        hasCeiling: false, gravityMod: 0.5 
     }
 };
 
 // --- ENTITÉS ---
 let platforms = [];
 let spikes = [];
-let enemies = []; // Nouveaux ennemis
+let enemies = [];
 let collectibles = [];
 let powerups = []; 
 let particles = [];
@@ -199,10 +199,10 @@ function initLevel(levelNum) {
     trail = [];
     cameraX = 0;
     
-    // Reset Player mais garde les vies
+    // Reset Player position
     respawnPlayer(false);
     
-    // Reset Powerups specifiques au niveau
+    // Reset Powerups
     magnetTimer = 0;
     hasShield = false;
     updatePowerupUI();
@@ -211,46 +211,40 @@ function initLevel(levelNum) {
     currentGravity = GRAVITY_DEFAULT * config.gravityMod;
     const mainColor = config.color;
 
-    // Mise à jour HUD
+    // HUD
     document.getElementById('level-indicator').innerText = config.name;
     document.getElementById('level-indicator').style.color = mainColor;
     document.getElementById('level-indicator').style.textShadow = `0 0 10px ${mainColor}`;
     updateLivesDisplay();
 
-    // Génération procédurale
     let cx = 0;
     let cy = height - TILE_SIZE * 3;
 
-    // Platforme de départ sécurisée
+    // Start Platform
     platforms.push({x: -100, y: cy, w: 500, h: height, type: 'start'});
     cx += 400;
 
     for(let i=0; i < config.length; i++) {
-        // Trous
         if(Math.random() < config.gapProb) {
             let gapSize = TILE_SIZE * (2 + Math.random() * (config.gravityMod < 1 ? 5 : 2));
             cx += gapSize;
         } 
         
-        // Variation Hauteur
         if (Math.random() < 0.4) {
             let hChange = (Math.floor(Math.random() * 3) - 1) * TILE_SIZE; 
             cy += hChange;
         }
         
-        // Limites hauteur
         if(cy > height - TILE_SIZE * 2) cy = height - TILE_SIZE * 2;
         if(cy < height * 0.4) cy = height * 0.4;
 
         let platWidth = TILE_SIZE * (3 + Math.random() * 4);
         
-        // Sol
         platforms.push({
             x: cx, y: cy, w: platWidth, h: height, 
             type: 'normal'
         });
 
-        // Plafond (Mode Cave - Niveau 2)
         if(config.hasCeiling) {
             platforms.push({
                 x: cx, y: 0, w: platWidth, h: cy - 150 - (Math.random()*50),
@@ -258,22 +252,19 @@ function initLevel(levelNum) {
             });
         }
 
-        // --- OBJETS SUR LA PLATEFORME ---
-        
-        // Ennemis (Robo-Slimes) - Pas sur la première plateforme
-        if(i > 2 && Math.random() < 0.25) { // 25% de chance
+        // Ennemis (Plus lents)
+        if(i > 2 && Math.random() < 0.25) { 
             enemies.push({
                 x: cx + 20,
                 y: cy - 30,
                 w: 30, h: 30,
                 xStart: cx,
                 xEnd: cx + platWidth,
-                speed: 2 + Math.random(),
+                speed: 1 + Math.random() * 1.5, // RALENTI ICI (était 2 + ...)
                 dir: 1,
                 color: '#ff3333'
             });
         }
-        // Sinon Pics
         else if(Math.random() < config.spikeProb) {
             spikes.push({
                 x: cx + platWidth/2 - 15,
@@ -281,7 +272,6 @@ function initLevel(levelNum) {
             });
         }
 
-        // Crédits
         if(Math.random() < 0.5) {
             collectibles.push({
                 x: cx + platWidth/2,
@@ -292,8 +282,7 @@ function initLevel(levelNum) {
             });
         }
 
-        // Power-ups (Beaucoup plus rares : 2%)
-        if(Math.random() < 0.02) { 
+        if(Math.random() < 0.03) { 
             let type = Math.random() > 0.5 ? 'shield' : 'magnet';
             powerups.push({
                 x: cx + platWidth/2,
@@ -307,19 +296,16 @@ function initLevel(levelNum) {
     }
 
     cx += 100;
-    // Plateforme fin
     platforms.push({x: cx, y: cy, w: 600, h: height, type: 'end'});
     flag = { x: cx + 300, y: cy - 100 };
 }
 
 function respawnPlayer(fullReset) {
-    // Si on meurt complètement
     if(fullReset) {
         player.x = 100;
         player.y = 100;
         player.vx = 0; player.vy = 0;
     }
-    // Juste un reset visuel d'état
     player.invincible = true;
     player.alpha = 0.5;
     setTimeout(() => {
@@ -328,11 +314,18 @@ function respawnPlayer(fullReset) {
     }, 2000);
 }
 
-// --- LOGIQUE GLOBALE ---
+// --- LOGIQUE GLOBALE (FIX BUG REBOOT) ---
 
 function nextAction() {
+    // 1. ARRÊTER la boucle existante pour éviter les doublons (vitesse x2)
+    if(animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+
     const box = document.getElementById('message-box');
     
+    // 2. Gestion des états
     if(gameState === 'start' || gameState === 'gameover' || gameState === 'win') {
         currentLevel = 1;
         coins = 0;
@@ -351,27 +344,25 @@ function nextAction() {
         initLevel(currentLevel);
     }
     
+    // 3. Cacher la boite et lancer une SEULE boucle propre
     box.style.display = 'none';
-    if(!animationFrameId) loop();
+    loop();
 }
 
 function takeDamage(sourceX) {
     if(player.invincible) return;
 
-    // Bouclier protège
     if(hasShield) {
         hasShield = false;
         updatePowerupUI();
         player.invincible = true;
         createParticles(player.x, player.y, 20, '#00ff00');
-        // Petit recul
         player.vy = -5;
-        player.vx = (player.x < sourceX) ? -8 : 8;
+        player.vx = (player.x < sourceX) ? -6 : 6;
         setTimeout(() => { player.invincible = false; }, 1000);
         return;
     }
 
-    // Dégâts normaux
     lives--;
     updateLivesDisplay();
     createParticles(player.x, player.y, 30, '#ff0000');
@@ -379,13 +370,12 @@ function takeDamage(sourceX) {
     if(lives <= 0) {
         gameOver();
     } else {
-        // Pas de respawn complet ! Juste recul et invincibilité
         player.invincible = true;
         player.alpha = 0.5;
         
         // Knockback (Recul)
-        player.vy = -8; // Saut en l'air
-        player.vx = (player.x < sourceX) ? -10 : 10; // Ejecté loin du danger
+        player.vy = -7;
+        player.vx = (player.x < sourceX) ? -8 : 8; // Ejecté un peu moins fort
         
         setTimeout(() => {
             player.invincible = false;
@@ -407,6 +397,8 @@ function updatePowerupUI() {
 
 function gameOver() {
     gameState = 'gameover';
+    // Note: on ne stop pas la boucle ici pour garder les particules,
+    // mais nextAction le fera avant de redémarrer.
     showModal("ÉCHEC CRITIQUE", "Système corrompu.<br>Plus aucune vie disponible.", "#ff0000", "REBOOT");
 }
 
@@ -456,7 +448,6 @@ canvas.addEventListener('touchstart', (e) => {
                 player.grounded = false;
                 createParticles(player.x + player.w/2, player.y + player.h, 10, '#fff');
             } else if (currentLevel === 3 && player.vy > 0) {
-                 // Double saut / Jetpack sur la lune
                  player.vy = -8;
                  createParticles(player.x, player.y + player.h, 5, '#ffff00');
             }
@@ -496,7 +487,7 @@ window.addEventListener('keydown', (e) => {
             player.vy = JUMP_FORCE;
             player.grounded = false;
         } else if (currentLevel === 3 && player.vy > 0) {
-             player.vy = -8; // Jetpack Lune
+             player.vy = -8;
         }
     }
 });
@@ -516,7 +507,7 @@ function update() {
 
     // Physique Joueur
     if(inputX !== 0) {
-        player.vx += inputX * 0.8;
+        player.vx += inputX * 0.5; // ACCELERATION REDUITE (0.5 au lieu de 0.8)
         player.facingRight = inputX > 0;
     } else {
         player.vx *= FRICTION;
@@ -535,19 +526,16 @@ function update() {
         if(player.x < p.x + p.w && player.x + player.w > p.x &&
            player.y < p.y + p.h && player.y + player.h > p.y) {
             
-            // Collision bas (Sol)
             let prevY = player.y - player.vy;
             if(prevY + player.h <= p.y + 20 && player.vy >= 0) {
                 player.y = p.y - player.h;
                 player.vy = 0;
                 player.grounded = true;
             }
-            // Collision haut (Plafond)
             else if (prevY >= p.y + p.h - 20 && player.vy < 0) {
                 player.y = p.y + p.h;
                 player.vy = 0;
             }
-            // Collision cotés
             else if (player.x + player.w/2 < p.x + p.w/2) {
                  player.x = p.x - player.w;
                  player.vx = 0;
@@ -558,9 +546,8 @@ function update() {
         }
     }
 
-    // Mort chute (Hors écran bas)
     if(player.y > height + 200) {
-        lives = 0; // Chute = mort instantanée
+        lives = 0;
         updateLivesDisplay();
         gameOver();
     }
@@ -574,20 +561,17 @@ function update() {
 
     // Ennemis
     for(let e of enemies) {
-        // Patrouille
         e.x += e.speed * e.dir;
         if(e.x > e.xEnd || e.x < e.xStart) e.dir *= -1;
         
-        // Collision Joueur
         if(checkRectCollide(player, e)) {
             takeDamage(e.x + e.w/2);
         }
     }
 
-    // Collectibles (Coins)
+    // Collectibles
     for(let c of collectibles) {
         if(c.active) {
-            // Effet Aimant
             if(magnetTimer > 0) {
                 let dist = Math.sqrt(Math.pow(player.x - c.x, 2) + Math.pow(player.y - c.y, 2));
                 if(dist < 300) {
@@ -596,7 +580,6 @@ function update() {
                 }
             }
 
-            // Hitbox
             let cBox = {x: c.x - c.w/2, y: c.y - c.h/2, w: c.w, h: c.h};
             if (checkRectCollide(player, cBox)) {
                 c.active = false;
@@ -652,14 +635,12 @@ function draw() {
     let config = LEVEL_CONFIG[currentLevel];
     let lvlColor = config.color;
     
-    // Dégradé Ciel
     let grad = ctx.createLinearGradient(0, 0, 0, height);
     grad.addColorStop(0, config.bgStart);
     grad.addColorStop(1, config.bgEnd);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
 
-    // Étoiles
     ctx.fillStyle = '#fff';
     for(let s of stars) {
         let sx = (s.x - cameraX * 0.05) % width;
@@ -669,7 +650,6 @@ function draw() {
     }
     ctx.globalAlpha = 1;
 
-    // Ville Arrière-plan
     let cityParallax = cameraX * 0.2;
     let cityOffset = -(cityParallax % width);
     drawCityLayer(cityOffset, lvlColor);
@@ -678,7 +658,6 @@ function draw() {
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // Plateformes
     ctx.shadowBlur = 10;
     ctx.shadowColor = lvlColor;
     ctx.strokeStyle = lvlColor;
@@ -689,7 +668,6 @@ function draw() {
         if(p.x + p.w > cameraX && p.x < cameraX + width) {
             ctx.fillRect(p.x, p.y, p.w, p.h);
             ctx.strokeRect(p.x, p.y, p.w, p.h);
-            // Grille déco
             ctx.save();
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -700,7 +678,6 @@ function draw() {
         }
     }
 
-    // Pics
     ctx.fillStyle = '#ff0055'; 
     ctx.shadowColor = '#ff0055';
     for(let s of spikes) {
@@ -713,7 +690,6 @@ function draw() {
         }
     }
 
-    // Ennemis (Robo-Slime)
     for(let e of enemies) {
         if(e.x + e.w > cameraX && e.x < cameraX + width) {
             let floatY = Math.abs(Math.sin(gameTime * e.speed)) * 5;
@@ -722,21 +698,18 @@ function draw() {
             ctx.shadowColor = e.color;
             ctx.fillStyle = e.color;
             
-            // Corps Slime
             ctx.beginPath();
             ctx.arc(e.x + e.w/2, e.y + e.h - floatY, e.w/2, Math.PI, 0);
             ctx.lineTo(e.x + e.w, e.y + e.h);
             ctx.lineTo(e.x, e.y + e.h);
             ctx.fill();
             
-            // Yeux Méchants
             ctx.fillStyle = '#fff';
             ctx.fillRect(e.x + 5, e.y + 10 - floatY, 8, 8);
             ctx.fillRect(e.x + 18, e.y + 10 - floatY, 8, 8);
         }
     }
 
-    // Collectibles
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#ffd700';
     for(let c of collectibles) {
@@ -746,7 +719,6 @@ function draw() {
         }
     }
 
-    // Powerups sur le terrain
     for(let p of powerups) {
         if(p.active && p.x > cameraX && p.x < cameraX + width) {
             let floatY = Math.sin(gameTime + p.offset * 2) * 5;
@@ -758,7 +730,6 @@ function draw() {
         }
     }
 
-    // Drapeau
     ctx.shadowColor = lvlColor;
     ctx.fillStyle = '#fff';
     ctx.fillRect(flag.x, flag.y, 4, 100); 
@@ -769,7 +740,6 @@ function draw() {
     ctx.lineTo(flag.x + 4, flag.y + 60);
     ctx.fill();
 
-    // Particules
     for(let p of particles) {
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.color;
@@ -777,7 +747,6 @@ function draw() {
     }
     ctx.globalAlpha = 1;
 
-    // Joueur
     if(player.invincible) {
         ctx.globalAlpha = 0.5 + Math.sin(gameTime * 20) * 0.3;
     }
@@ -820,7 +789,6 @@ function drawCyberBibou(glowColor) {
     let pw = player.w;
     let ph = player.h;
 
-    // Animation jambes
     let legCycle = 0;
     if(Math.abs(player.vx) > 0.5 && !player.grounded) legCycle = 0.5;
     else if(Math.abs(player.vx) > 0.5) legCycle = Math.sin(gameTime * 2);
@@ -829,40 +797,31 @@ function drawCyberBibou(glowColor) {
     ctx.translate(px + pw/2, py + ph/2);
     if (!player.facingRight) ctx.scale(-1, 1);
 
-    // Bouclier Visuel
     if(hasShield) {
         ctx.beginPath(); ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2;
         ctx.arc(0, 0, 45, 0, Math.PI*2); ctx.stroke();
         ctx.fillStyle = 'rgba(0, 255, 0, 0.15)'; ctx.fill();
     }
 
-    // Skin Bibou
     ctx.shadowBlur = 10; ctx.shadowColor = '#e74c3c';
     
-    // Corps
     ctx.fillStyle = '#e74c3c';
     ctx.fillRect(-15, -20, 30, 40);
-    // Plastron
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.moveTo(-10, -20); ctx.lineTo(10, -20); ctx.lineTo(0, 5); ctx.fill();
-    // Tête
     ctx.fillStyle = '#2c3e50';
     ctx.beginPath(); ctx.arc(0, -30, 16, 0, Math.PI*2); ctx.fill();
-    // Visière
     ctx.fillStyle = '#0ff'; ctx.fillRect(5, -34, 10, 6);
 
-    // Jetpack (Si vol lune ou course)
     if(Math.abs(player.vx) > 1 || currentGravity < GRAVITY_DEFAULT) {
         ctx.fillStyle = glowColor;
         ctx.beginPath(); ctx.moveTo(-18, 5); ctx.lineTo(-25, 15); ctx.lineTo(-14, 15); ctx.fill();
-        // Flamme si Lune
         if(currentGravity < GRAVITY_DEFAULT && player.vy < 0) {
              ctx.fillStyle = '#ffaa00';
              ctx.beginPath(); ctx.moveTo(-18, 15); ctx.lineTo(-20, 25); ctx.lineTo(-16, 25); ctx.fill();
         }
     }
 
-    // Jambes & Bras
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(-5, 20); ctx.lineTo(-5 - Math.sin(legCycle)*15, 35); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(10, 20); ctx.lineTo(10 + Math.sin(legCycle)*15, 35); ctx.stroke();
@@ -898,3 +857,4 @@ document.getElementById('message-box').style.display = 'block';
 </script>
 </body>
 </html>
+
